@@ -1,0 +1,6 @@
+#!/bin/sh
+
+cd ..
+git reset --hard
+chmod +x build/post-update.php
+./build/post-update.php
