@@ -20,7 +20,7 @@ bombada.assets = {
 
 bombada.copy = {
 	movesLeft : 'Moves Left:',
-	version : 'Bombada alpha build 0'
+	version : 'Bombada alpha build 00'
 };
 
 bombada.design = {
