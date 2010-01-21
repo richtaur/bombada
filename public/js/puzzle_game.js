@@ -1,14 +1,21 @@
 /*
 
 TODO:
-
-- optimize everything to use a single sprite (sigh)
-- realphabetize function order
 - audit all sprite and layer usage -- might be stuff not using
-- get into bombada.js and get rid of extraneous shit
-- fix centerOn bug when board first initializes
-- make is so that board/stats are switchable and/or rotatable
-- way down the road, OPTIMIZE! probably make a single asset/SpriteSheet
+- down the road, OPTIMIZE! probably make a single asset/SpriteSheet
+- if we're going to have the image filenames in bombada.js,
+	also will need the image dimensions as right now it's hardcoded
+
+things left before beta is done:
+- finish flow (select pieces, earn points, etc.)
+- music/sound effects from josh
+- finalize feedback system (money, bombs, movesLeft ...)
+- tweak graphics (lighter probably)
+- export to Android (iPhone too?)
+- have an overlay with a Game Over modal
+	it should tell your your score and if you beat the old score
+	Then an OK button
+- redo title
 
 */
 
@@ -17,9 +24,12 @@ var puzzleGame = (function() {
 var board = exports.board;
 
 // Constants kinda
+var DEFAULT_NUM_MOVES = 10;
+
 var GROUP_PIECE = 'piece';
 
 var INTERVAL_MATCH = 250;
+var INTERVAL_NOTICE = 700;
 
 var PIECE_BUFFER = 3;
 var PIECE_SIZE = 48;
@@ -28,20 +38,17 @@ var PIECES_Y = 8;
 
 var SPEED_PIECE = 10;
 
-var Z_INDEX_DEBUG = 100; // Highest, for debugging
-var Z_INDEX_HUD = 90; // Stuff like mute button: always on top on all game UI
-var Z_INDEX_MODAL = 80; // Just above the overlay
-var Z_INDEX_OVERLAY = 70; // Covers up everything except the HUD and overlay
-var Z_INDEX_PIECE = 60; // Above the board
-var Z_INDEX_CURSOR = 50; // Below the pieces
+var Z_INDEX_UI = 30; // Stuff like mute button: always on top on all game UI
+var Z_INDEX_PIECE = 20; // Above the board
+var Z_INDEX_CURSOR = 10; // Below the pieces
 
+var audio;
 var busy;
 var gameData;
 var layers;
-var options = {
-	soundOn : true
-};
 var player = {
+	movesLeft : 0,
+	movesTo : 0,
 	selected : {}
 };
 var sprites;
@@ -51,16 +58,16 @@ var init = function(data) {
 	gameData = data;
 
 	DGE.init({
-		baseURL : (gameData.core.baseURL + gameData.theme + '/'),
+		baseURL : gameData.core.baseURL,
 		interval : gameData.core.interval,
 		stage : gameData.stage
 	});
 
-	// TODO this should probably come from bombada.js or whatnot
 	DGE.Text.defaults.color = gameData.design.color;
 	DGE.Text.defaults.font = gameData.design.font;
+	DGE.Text.defaults.shadow = gameData.design.shadow;
 
-	board.set('getRandomPiece', function() {
+	board.set('getNewPiece', function() {
 
 		if (DGE.rand(1, 10) == 1) { // 10% chance of a diamond
 			return 0;
@@ -70,54 +77,36 @@ var init = function(data) {
 
 	});
 
+	new DGE.Loader([gameData.assets]);
+
+	audio = {
+		invalidMove : new DGE.Audio({
+			file : gameData.audio.invalidMove
+		}),
+		music : new DGE.Audio({
+			file : gameData.audio.music
+		}),
+		soundOn : new DGE.Audio({
+			file : gameData.audio.soundOn
+		})
+	};
+
 	layers = DGE.layers.set({
-
-		loading : {
-			init : function() {
-
-/*
-				var progress = new DGE.Text({
-					addTo : this,
-					color : '#FFF',
-				}).setXY(300, 200);
-*/
-
-				new DGE.Loader([
-// TODO: this isn't everything!
-					gameData.assets[gameData.theme].soundOn,
-					gameData.assets[gameData.theme].soundOff,
-					gameData.assets[gameData.theme].title
-				], {
-					change : function(percentage) {
-						//progress.text(percentage + '%');
-					},
-					complete : function() {
-						//progress.remove();
-						layers.play.showOnly();
-					},
-					error : function(e) {
-// TODO
-						//error("Sorry, couldn't find a file.", e);
-					}
-				});
-			}
-
-		},
 
 		play : {
 			init : function() {
 
-				this.image(gameData.assets[gameData.theme].background);
+				this.image(gameData.assets.background);
 // TODO why's this CSS here?
 				this.setCSS('background-position', 'right top');
 
 				new DGE.Sprite({
 					addTo : this,
-					image: gameData.assets[gameData.theme].title,
-					width : 175,
-					height : 60,
+					image: gameData.assets.title,
+					width : 200,
+					height : 70,
 					x : 32,
-					y : 22
+					y : 18
 				});
 
 				this.board = new DGE.Sprite({
@@ -194,32 +183,31 @@ var init = function(data) {
 
 				this.movesText = new DGE.Text({
 					addTo : this.stats,
+					font : gameData.design.movesFont,
+					ping : function() {
+						if (player.movesLeft < player.movesTo) {
+							player.movesLeft++;
+						} else if (player.movesLeft > player.movesTo) {
+							player.movesLeft--;
+						}
+						this.text(player.movesLeft);
+					},
 					size : 64,
-					text : 10,
 					x : 170,
 					y : (((PIECE_SIZE + PIECE_BUFFER) * 2) - 2)
 				});
-
-			},
-			show : function() {
-
-DGE.debug('play.show');
-				newGame();
-
-				this.board.setXY(356, 36);
-				clickPiece(0, 1);
 
 			}
 		}
 
 	});
 
-	// Persistent UI, onesies, etc.
 	sprites = {
 
 		cursor : new DGE.Sprite({
 			cursor : true,
-			image : gameData.assets[gameData.theme].boardCursor,
+			image : gameData.assets.boardCursor,
+			ping : gameData.design.cursorPing,
 			width : 60,
 			height : 60,
 			x : 53,
@@ -227,37 +215,35 @@ DGE.debug('play.show');
 			zIndex : Z_INDEX_CURSOR
 		}),
 
-/*
-		overlay : new DGE.Sprite({
-fill : '#000',
-			opacity : 0.8,
-			zIndex : Z_INDEX_OVERLAY,
-			width : DGE.STAGE_WIDTH,
-			height : DGE.STAGE_HEIGHT
-		}).hide(),
-*/
+		notice : new DGE.Text({
+			size : gameData.design.noticeSize,
+			zIndex : Z_INDEX_UI
+		}),
 
 		pieces : [],
 
 		speaker : new DGE.Sprite({
 			click : function() {
 
-				if (options.soundOn) {
-					options.soundOn = false;
-					this.image(gameData.assets[gameData.theme].soundOff);
+				if (DGE.Audio.enabled) {
+					DGE.Audio.enabled = false;
+					audio.music.pause();
+					this.image(gameData.assets.soundOff);
 				} else {
-					options.soundOn = true;
-					this.image(gameData.assets[gameData.theme].soundOn);
+					DGE.Audio.enabled = true;
+					audio.music.play();
+					audio.soundOn.play();
+					this.image(gameData.assets.soundOn);
 				}
 
 			},
 			cursor : true,
-			image : gameData.assets[gameData.theme].soundOn,
+			image : gameData.assets.soundOn,
 			width : 64,
 			height : 53,
 			x : 262,
 			y : 30,
-			zIndex : Z_INDEX_HUD
+			zIndex : Z_INDEX_UI
 		}),
 
 		version : new DGE.Text({
@@ -269,19 +255,10 @@ fill : '#000',
 
 	};
 
+	//audio.music.play();
 	DGE.start();
-	layers.loading.showOnly();
+	newGame();
 
-};
-
-function error(e, debug) {
-	// TODO: modal? or get rid of this
-//console.log('an error occurred: ', e, debug);
-};
-
-function newGame() {
-	board.reset();
-	setBoard();
 };
 
 function clickPiece(px, py) {
@@ -289,7 +266,7 @@ function clickPiece(px, py) {
 	if (busy) return;
 
 	var pieceClicked = getPieceByPXY(px, py);
-	sprites.cursor.centerOn(pieceClicked);
+	sprites.cursor.centerOn(pieceClicked).show();
 
 	var psx = player.selected.px;
 	var psy = player.selected.py;
@@ -326,7 +303,34 @@ DGE.debug('we got a valid move, lez try it out');
 				execMatches();
 
 			} else {
-DGE.debug('damn son, that move was not valid!');
+
+				// Invalid move!
+				audio.invalidMove.play();
+				if (--player.movesTo == 0) newGame();
+				showNotice(gameData.copy.invalidMove, gameData.design.errorColor);
+
+				pieceCursor.animate({
+					x : {
+						from : pieceCursor._x,
+						to : pieceClicked._x
+					},
+					y : {
+						from : pieceCursor._y,
+						to : pieceClicked._y
+					},
+				}, (INTERVAL_MATCH / 3));
+
+				pieceClicked.animate({
+					x : {
+						from : pieceClicked._x,
+						to : pieceCursor._x
+					},
+					y : {
+						from : pieceClicked._y,
+						to : pieceCursor._y
+					},
+				}, (INTERVAL_MATCH / 3));
+
 			}
 
 		}
@@ -362,30 +366,6 @@ function clickPieceByCoords(x, y) {
 	var py = ((y - 1) / (PIECE_SIZE + PIECE_BUFFER));
 
 	clickPiece(px, py);
-
-};
-
-function getPieceByPXY(px, py) {
-
-	var found = DGE.Sprite.getByGroup(GROUP_PIECE);
-
-	if (found) {
-
-		for (var i = 0; i < found.length; i++) {
-
-			var x = ((PIECE_SIZE + PIECE_BUFFER) * px + 2);
-			var y = ((PIECE_SIZE + PIECE_BUFFER) * py + 1);
-
-			if (
-				(found[i]._x == x)
-				&& (found[i]._y == y)
-			) return found[i];
-
-		}
-
-	}
-
-	throw("Couldn't find a piece at " + px + ", " + py);
 
 };
 
@@ -427,6 +407,45 @@ DGE.debug('matches:', matches);
 
 };
 
+function getPieceByPXY(px, py) {
+
+	var found = DGE.Sprite.getByGroup(GROUP_PIECE);
+
+	if (found) {
+
+		for (var i = 0; i < found.length; i++) {
+
+			var x = ((PIECE_SIZE + PIECE_BUFFER) * px + 2);
+			var y = ((PIECE_SIZE + PIECE_BUFFER) * py + 1);
+
+			if (
+				(found[i]._x == x)
+				&& (found[i]._y == y)
+			) return found[i];
+
+		}
+
+	}
+
+	throw(DGE.printf("Couldn't find a piece at %s, %s", px, py));
+
+};
+
+function newGame() {
+
+	player.movesLeft = DEFAULT_NUM_MOVES;
+	player.movesTo = DEFAULT_NUM_MOVES;
+
+	board.reset();
+	DGE.Sprite.getByGroup(GROUP_PIECE, 'remove');
+	setBoard();
+
+	layers.play.show();
+	layers.play.board.setXY(356, 36);
+	sprites.cursor.hide();
+
+};
+
 function setBoard() {
 
 	var pieces = board.getPieces();
@@ -455,6 +474,34 @@ function setBoard() {
 
 		}
 	}
+
+};
+
+function showNotice(msg, color) {
+
+	sprites.notice
+		.color(color)
+		.text(msg)
+		.show()
+		.center()
+		.animate({
+			opacity : {
+				from : 1,
+				to : 0
+			},
+			size : {
+				from : gameData.design.noticeSize,
+				to : gameData.design.noticeSizeTo
+			}
+		}, INTERVAL_NOTICE, {
+			complete : function() {
+				this.hide();
+				this.size(gameData.design.noticeSize);
+			},
+			tween : function() {
+				this.center();
+			}
+		});
 
 };
 
