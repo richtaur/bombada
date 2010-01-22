@@ -5,6 +5,7 @@ TODO:
 - down the road, OPTIMIZE! probably make a single asset/SpriteSheet
 - if we're going to have the image filenames in bombada.js,
 	also will need the image dimensions as right now it's hardcoded
+- figure out why git reset --hard isn't working on slicehost
 
 things left before beta is done:
 - finish flow (select pieces, earn points, etc.)
@@ -441,7 +442,7 @@ function newGame() {
 	setBoard();
 
 	layers.play.show();
-	layers.play.board.setXY(356, 36);
+	layers.play.board.plot(356, 36);
 	sprites.cursor.hide();
 
 };
