@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ti:app xmlns:ti="http://ti.appcelerator.org">
+	<id>com.richtaur.bombada</id>
+	<name>Bombada</name>
+	<version>1.0</version>
+	<icon>appicon.png</icon>
+	<persistent-wifi>false</persistent-wifi>
+	<prerendered-icon>false</prerendered-icon>
+	<statusbar-style>opaque</statusbar-style>
+	<windows>
+		<window>
+			<id>initial</id>
+			<url>bombada.htm</url>
+			<backgroundColor>#000</backgroundColor>
+			<icon>ti://featured</icon>
+			<fullscreen>true</fullscreen>
+		</window>
+	</windows>
+</ti:app>
