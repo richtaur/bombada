@@ -1,0 +1,3 @@
+DGE.Interval=function(fn,delay){var fns=[];var handle=null;if(fn!==undefined){if(fn.length){fns=fn;}else{fns=[fn];}}
+if(delay===undefined)delay=DGE.Interval.defaults.delay;this.add=function(fn){fns.push(fn);return this;};this.setDelay=function(newDelay){if(delay==newDelay)return;delay=newDelay;if(handle)this.start();return this;};this.start=function(){var that=this;this.stop();handle=setInterval(function(){for(var i=0;i<fns.length;i++){fns[i].apply(that);}},delay);this._active=true;return this;};this.stop=function(){if(handle){clearInterval(handle);handle=null;}
+this._active=false;return;};};DGE.Interval.prototype._active=false;DGE.Interval.defaults={delay:10};DGE.Interval.formatFPS=function(fps){return Math.ceil(1000/fps);};

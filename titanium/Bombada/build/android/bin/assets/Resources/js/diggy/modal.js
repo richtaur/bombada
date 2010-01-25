@@ -1,0 +1,1 @@
+DGE.Modal=function(conf){};DGE.Modal.overlay=null;

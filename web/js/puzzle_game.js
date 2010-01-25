@@ -12,11 +12,11 @@ things left before beta is done:
 - music/sound effects from josh
 - finalize feedback system (money, bombs, movesLeft ...)
 - tweak graphics (lighter probably)
-- export to Android (iPhone too?)
+- export to Android
+- and iPhone
 - have an overlay with a Game Over modal
 	it should tell your your score and if you beat the old score
-	Then an OK button
-- redo title
+	with an OK button
 
 */
 
@@ -30,7 +30,7 @@ var DEFAULT_NUM_MOVES = 10;
 var GROUP_PIECE = 'piece';
 
 var INTERVAL_MATCH = 250;
-var INTERVAL_NOTICE = 700;
+var INTERVAL_NOTICE = 750;
 
 var PIECE_BUFFER = 3;
 var PIECE_SIZE = 48;

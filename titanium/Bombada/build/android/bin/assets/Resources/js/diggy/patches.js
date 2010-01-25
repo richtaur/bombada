@@ -1,0 +1,2 @@
+Array.prototype.indexOf=Array.prototype.indexOf||function(el){var len=this.length>>>0;var from=Number(arguments[1])||0;from=(from<0)?Math.ceil(from):Math.floor(from);if(from<0)from+=len;for(;from<len;from++){if(from in this&&(this[from]===el)){return from;}}
+return-1;};String.prototype.trim=function(){return this.replace(/^\s+|\s+$/g,'');};

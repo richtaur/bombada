@@ -76,9 +76,7 @@ bombada.pieceTypes = [
 
 bombada.stage = {
 	id : 'bombada',
-	background : '#000',
-	width : 800,
-	height : 480
+	background : '#000'
 };
 
 /*
