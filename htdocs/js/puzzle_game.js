@@ -6,12 +6,13 @@ TODO:
 - if we're going to have the image filenames in bombada.js,
 	also will need the image dimensions as right now it's hardcoded
 - figure out why git reset --hard isn't working on slicehost
+- Moves Left and Move Left (when only one move left)
 
 things left before beta is done:
-- finish flow (select pieces, earn points, etc.)
+- finish flow (select pieces, earn points, drop bombs, etc.)
+- easing
+- local storage (DGE.data)
 - music/sound effects from josh
-- finalize feedback system (money, bombs, movesLeft ...)
-- tweak graphics (lighter probably)
 - export to Android
 - and iPhone
 - have an overlay with a Game Over modal
@@ -26,22 +27,16 @@ var board = exports.board;
 
 // Constants kinda
 var DEFAULT_NUM_MOVES = 10;
-
 var GROUP_PIECE = 'piece';
-
 var INTERVAL_MATCH = 250;
 var INTERVAL_NOTICE = 750;
-
-var PIECE_BUFFER = 3;
-var PIECE_SIZE = 48;
+var PIECE_BUFFER = 0;
 var PIECES_X = 8;
 var PIECES_Y = 8;
-
 var SPEED_PIECE = 10;
-
-var Z_INDEX_UI = 30; // Stuff like mute button: always on top on all game UI
-var Z_INDEX_PIECE = 20; // Above the board
-var Z_INDEX_CURSOR = 10; // Below the pieces
+var Z_INDEX_UI = 3; // Stuff like mute button: always on top on all game UI
+var Z_INDEX_CURSOR = 2; // Above the board
+var Z_INDEX_PIECE = 1; // Above the background
 
 var audio;
 var busy;
@@ -98,105 +93,94 @@ var init = function(data) {
 			init : function() {
 
 				this.image(gameData.assets.background);
-// TODO why's this CSS here?
-				this.setCSS('background-position', 'right top');
-
-				new DGE.Sprite({
-					addTo : this,
-					image: gameData.assets.title,
-					width : 200,
-					height : 70,
-					x : 32,
-					y : 18
-				});
 
 				this.board = new DGE.Sprite({
 					addTo : this,
-					width : ((PIECE_SIZE + PIECE_BUFFER) * PIECES_X),
-					height : ((PIECE_SIZE + PIECE_BUFFER) * PIECES_Y)
+					width : ((gameData.design.pieceSize + PIECE_BUFFER) * PIECES_X),
+					height : ((gameData.design.pieceSize + PIECE_BUFFER) * PIECES_Y)
 				});
 
 				this.counts = {};
 				this.pieces = {};
 
-				this.stats = new DGE.Sprite({
-					addTo : this,
-					width : 300,
-					height : 360,
-					x : 30,
-					y : 96
-				});
-
 				// Money
 				this.moneyIcon = new DGE.Sprite({
-					addTo : this.stats,
+					addTo : this,
 					image : gameData.pieceTypes[1],
-					width : PIECE_SIZE,
-					height : PIECE_SIZE,
+					width : gameData.design.pieceSize,
+					height : gameData.design.pieceSize,
 					x : 0,
 					y : 0
 				});
 
 				this.moneyText = new DGE.Text({
-					addTo : this.stats,
+					addTo : this,
 					color : '#449F24',
 					size : 36,
 					text : 0,
-					x : (PIECE_SIZE + PIECE_BUFFER),
+					x : (gameData.design.pieceSize + PIECE_BUFFER),
 					y : 0
 				});
 
 				// Bombs
 				this.bombsIcon = new DGE.Sprite({
-					addTo : this.stats,
+					addTo : this,
 					image : gameData.pieceTypes[3],
-					width : PIECE_SIZE,
-					height : PIECE_SIZE,
+					width : gameData.design.pieceSize,
+					height : gameData.design.pieceSize,
 					x : 0,
-					y : (PIECE_SIZE + PIECE_BUFFER)
+					y : (gameData.design.pieceSize + PIECE_BUFFER)
 				});
 
 				this.bombsText = new DGE.Text({
-					addTo : this.stats,
+					addTo : this,
 					color : gameData.design.bombsTextColor,
 					size : 36,
 					text : 0,
-					x : (PIECE_SIZE + PIECE_BUFFER),
-					y : (PIECE_SIZE + PIECE_BUFFER)
+					x : (gameData.design.pieceSize + PIECE_BUFFER),
+					y : (gameData.design.pieceSize + PIECE_BUFFER)
 				});
 
 				new DGE.Text({
-					addTo : this.stats,
-					size : 20,
+					addTo : this,
+					color : '#A3A4AA',
+					size : 14,
 					text : gameData.copy.movesLeft,
+					width : 170,
 					x : 0,
-					y : (((PIECE_SIZE + PIECE_BUFFER) * 2) + 20)
-				});
+					y : 294
+				}).setCSS('text-align', 'center');
 
+/*
 				this.movesIcon = new DGE.Sprite({
-					addTo : this.stats,
+					addTo : this,
 					image : gameData.pieceTypes[4],
-					width : PIECE_SIZE,
-					height : PIECE_SIZE,
+					width : gameData.design.pieceSize,
+					height : gameData.design.pieceSize,
 					x : 110,
-					y : ((PIECE_SIZE + PIECE_BUFFER) * 2)
+					y : 
 				});
+*/
 
 				this.movesText = new DGE.Text({
-					addTo : this.stats,
+					addTo : this,
 					font : gameData.design.movesFont,
 					ping : function() {
+
 						if (player.movesLeft < player.movesTo) {
 							player.movesLeft++;
 						} else if (player.movesLeft > player.movesTo) {
 							player.movesLeft--;
 						}
-						this.text(player.movesLeft);
+
+						this.text(player.movesLeft, 'number');
+
 					},
 					size : 64,
-					x : 170,
-					y : (((PIECE_SIZE + PIECE_BUFFER) * 2) - 2)
-				});
+					width: 170,
+					x : 0,
+					y : 230
+				}).setCSS('text-align', 'center');
 
 			}
 		}
@@ -207,10 +191,10 @@ var init = function(data) {
 
 		cursor : new DGE.Sprite({
 			cursor : true,
-			image : gameData.assets.boardCursor,
+			image : gameData.assets.cursor,
 			ping : gameData.design.cursorPing,
-			width : 60,
-			height : 60,
+			width : 54,
+			height : 54,
 			x : 53,
 			y : 2,
 			zIndex : Z_INDEX_CURSOR
@@ -249,10 +233,12 @@ var init = function(data) {
 
 		version : new DGE.Text({
 			color : '#FFF',
-			size : 12,
+			size : 8,
 			text : gameData.copy.version,
-			wrap : false
-		}).alignRight(-6).alignBottom(-6)
+			wrap : false,
+			x : 140,
+			y : 55
+		})
 
 	};
 
@@ -363,8 +349,8 @@ DGE.debug('we got a valid move, lez try it out');
 
 function clickPieceByCoords(x, y) {
 
-	var px = ((x - 2) / (PIECE_SIZE + PIECE_BUFFER));
-	var py = ((y - 1) / (PIECE_SIZE + PIECE_BUFFER));
+	var px = ((x - 2) / (gameData.design.pieceSize + PIECE_BUFFER));
+	var py = ((y - 1) / (gameData.design.pieceSize + PIECE_BUFFER));
 
 	clickPiece(px, py);
 
@@ -416,8 +402,8 @@ function getPieceByPXY(px, py) {
 
 		for (var i = 0; i < found.length; i++) {
 
-			var x = ((PIECE_SIZE + PIECE_BUFFER) * px + 2);
-			var y = ((PIECE_SIZE + PIECE_BUFFER) * py + 1);
+			var x = ((gameData.design.pieceSize + PIECE_BUFFER) * px + 2);
+			var y = ((gameData.design.pieceSize + PIECE_BUFFER) * py + 1);
 
 			if (
 				(found[i]._x == x)
@@ -442,7 +428,7 @@ function newGame() {
 	setBoard();
 
 	layers.play.show();
-	layers.play.board.plot(356, 36);
+	layers.play.board.plot(176, 16);
 	sprites.cursor.hide();
 
 };
@@ -464,10 +450,10 @@ function setBoard() {
 				group : GROUP_PIECE,
 				image : gameData.pieceTypes[pieces[x][y]],
 				speed : SPEED_PIECE,
-				width : PIECE_SIZE,
-				height : PIECE_SIZE,
-				x : ((PIECE_SIZE + PIECE_BUFFER) * x + 2),
-				y : ((PIECE_SIZE + PIECE_BUFFER) * y + 1),
+				width : gameData.design.pieceSize,
+				height : gameData.design.pieceSize,
+				x : ((gameData.design.pieceSize + PIECE_BUFFER) * x + 2),
+				y : ((gameData.design.pieceSize + PIECE_BUFFER) * y + 1),
 				zIndex : Z_INDEX_PIECE
 			}));
 

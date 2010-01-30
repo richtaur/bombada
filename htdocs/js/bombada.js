@@ -3,17 +3,16 @@
 var bombada = {};
 
 bombada.core = {
-	baseURL : 'gfx/',
+	baseURL : 'gfx/480x320/',
 	interval : 17 // ~60fps
 };
 
 bombada.assets = {
-	background : 'background.png',
-	board : 'board2.png',
-	boardCursor : 'cursor.png',
+	background : 'bg.png',
+	//board : 'board2.png',
+	cursor : 'cursor.png',
 	soundOn : 'volume_on.png',
-	soundOff : 'volume_off.png',
-	title : 'title.png'
+	soundOff : 'volume_off.png'
 };
 
 bombada.audio = {
@@ -25,8 +24,8 @@ bombada.audio = {
 
 bombada.copy = {
 	invalidMove : 'Invalid move',
-	movesLeft : 'Moves Left:',
-	version : 'Bombada alpha build 0'
+	movesLeft : 'Moves Left',
+	version : 'v0.1'
 };
 
 bombada.design = {
@@ -61,6 +60,7 @@ bombada.design = {
 	movesFont : 'Helvetica, Sans-Serif',
 	noticeSize : 30,
 	noticeSizeTo : 60,
+	pieceSize : 36,
 	shadow : '2px 2px 2px #000'
 };
 
@@ -76,12 +76,14 @@ bombada.pieceTypes = [
 
 bombada.stage = {
 	id : 'bombada',
-	background : '#000'
+	background : '#000',
+	width : 480,
+	height : 320
 };
 
 /*
 android emulator is 480x320
-*/
+looks like iPhone is 480x320 too
 if (DGE.platform.name == DGE.platform.BROWSER) {
 	bombada.stage.width = 800;
 	bombada.stage.height = 480;
@@ -89,6 +91,7 @@ if (DGE.platform.name == DGE.platform.BROWSER) {
 	bombada.stage.width = DGE.DISPLAY_WIDTH;
 	bombada.stage.height = DGE.DISPLAY_HEIGHT;
 }
+*/
 
 puzzleGame(bombada);
 
