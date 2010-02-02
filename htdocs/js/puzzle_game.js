@@ -242,7 +242,7 @@ var init = function(data) {
 
 	};
 
-	//audio.music.play();
+	audio.music.play();
 	DGE.start();
 	newGame();
 

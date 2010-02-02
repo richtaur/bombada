@@ -4,7 +4,7 @@ var bombada = {};
 
 bombada.core = {
 	baseURL : 'gfx/480x320/',
-	interval : 17 // ~60fps
+	interval : 34 // ~30fps
 };
 
 bombada.assets = {
@@ -18,7 +18,7 @@ bombada.assets = {
 bombada.audio = {
 // TODO: audioURL conf?
 	invalidMove : 'audio/EnemyDeath.ogg',
-	music : 'audio/unrest.ogg',
+	music : 'audio/sly.ogg',
 	soundOn : 'audio/Powerup.ogg'
 };
 
