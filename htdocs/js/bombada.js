@@ -1,14 +1,9 @@
 /*
 
 - down the road, OPTIMIZE! probably make a single asset/SpriteSheet
-- if we're going to have the image filenames in bombada.js,
-	also will need the image dimensions as right now it's hardcoded
-- Moves Left VS Move Left (when only one move left -- singular/plural)
 
 things left before beta is done:
 - finish flow (select pieces, earn points, drop bombs, etc.)
-- easing
-- local storage (DGE.data)
 - music/sound effects from josh
 - export to Android
 - and iPhone
@@ -18,22 +13,82 @@ things left before beta is done:
 
 */
 
+/*
+DGE.init({
+	id : 'bombada',
+	width : 480,
+	height : 320
+}).fill('#000');
+
+var sprite = new DGE.Sprite({
+	width : 50,
+	height : 50
+}).fill('blue');
+
+var stage = 0;
+var x = 430;
+var y = 0;
+
+var callbacks = {
+	complete : function() {
+		init();
+	},
+	tween : function() {
+		//DGE.log('tween');
+	}
+};
+
+function init() {
+
+	if (++stage == 4) stage = 0;
+
+	switch (stage) {
+		case 0:
+			x = 0;
+			y = 0;
+			break;
+		case 1:
+			x = 430;
+			y = 0;
+			break;
+		case 2:
+			x = 430;
+			y = 270;
+			break;
+		case 3:
+			x = 0;
+			y = 270;
+			break;
+	}
+
+	sprite.animate({
+		x : x,
+		y : y
+	}, 500, callbacks);
+	
+};
+
+init();
+*/
+
 (function() {
 
 var board = exports.board;
 
 // Constants kinda
 var DEFAULT_NUM_MOVES = 10;
-//TODO var GROUP_PIECE = 'piece';
-var INTERVAL_MATCH = 250;
-var INTERVAL_NOTICE = 750;
+var DELAY_ERROR = 100;
+var DELAY_MATCH = 750;
+var DELAY_MOVE = 250;
+var DELAY_NOTICE = 750;
 var PIECE_SIZE = 36;
 var PIECES_X = 8;
 var PIECES_Y = 8;
 var VELOCITY_PIECE = 10;
-var Z_UI = 3; // Stuff like mute button: always on top on all game UI
-var Z_CURSOR = 2; // Above the board
-var Z_PIECE = 1; // Above the background
+var Z_UI = 5; // Stuff like mute button: always on top on all game UI.
+var Z_CURSOR = 4; // Above the pieces.
+var Z_PIECE_MOVING = 3; // Moving, so above the other pieces to prevent visual clutter.
+var Z_PIECE = 2; // Above the background.
 
 var assets = {
 	background : 'gfx/480x320/bg.png',
@@ -102,7 +157,8 @@ var init = function() {
 			width : (PIECE_SIZE * PIECES_X),
 			height : (PIECE_SIZE * PIECES_Y),
 			x : 176,
-			y : 16
+			y : 16,
+			z : Z_PIECE
 		}),
 
 		bombsIcon : new DGE.Sprite({
@@ -110,7 +166,7 @@ var init = function() {
 			width : PIECE_SIZE,
 			height : PIECE_SIZE,
 			x : 10,
-			y : 150
+			y : 110
 		}),
 
 		bombsText : new DGE.Text({
@@ -120,7 +176,7 @@ var init = function() {
 			width : 200,
 			height : 42,
 			x : 60,
-			y : 150
+			y : 110
 		}),
 
 		cursor : new DGE.Sprite({
@@ -133,33 +189,28 @@ var init = function() {
 			z : Z_CURSOR
 		}).on('ping', function() {
 
-				var inc = 0.01;
+			var inc = 0.01;
 
-				if (this.get('direction') === undefined) {
+			if (this.get('direction')) {
+				this.offset('opacity', inc);
+				if (this.get('opacity') >= 1) {
 					this.set('direction', false);
-					this.set('opacity', 1);
 				}
-
-				if (this.get('direction')) {
-					this.offset('opacity', inc);
-					if (this.get('opacity') >= 1) {
-						this.set('direction', false);
-					}
-				} else {
-					this.offset('opacity', -inc);
-					if (this.get('opacity') <= 0.5) {
-						this.set('direction', true);
-					}
+			} else {
+				this.offset('opacity', -inc);
+				if (this.get('opacity') <= 0.5) {
+					this.set('direction', true);
 				}
+			}
 
-		}),
+		}).start(),
 
 		moneyIcon : new DGE.Sprite({
 			image : pieceTypes[1],
 			width : PIECE_SIZE,
 			height : PIECE_SIZE,
 			x : 10,
-			y : 200
+			y : 150
 		}),
 
 		moneyText : new DGE.Text({
@@ -169,38 +220,54 @@ var init = function() {
 			width : 200,
 			height : 42,
 			x : 60,
-			y : 200
+			y : 150
 		}),
+
+		movesLeft : new DGE.Text({
+			color : '#A3A4AA',
+			size : 14,
+			text : 'Moves Left',
+			width : 170,
+			height : 14,
+			x : 0,
+			y : 294
+		}).setCSS('text-align', 'center'),
+// TODO: get rid of all the text-align centres and replace with format center, once you figure that out
 
 		movesText : new DGE.Text({
 			font : 'Helvetica, Sans-Serif',
-			ping : function() {
-// TODO
-
-				if (player.movesLeft < player.movesTo) {
-					player.movesLeft++;
-				} else if (player.movesLeft > player.movesTo) {
-					player.movesLeft--;
-				}
-
-				this.text(player.movesLeft, 'number');
-
-			},
 			size : 64,
-			width : 200,
-			height: 42,
-			x : 10,
+			width : 170,
+			height : 64,
+			x : 0,
 			y : 230
-		}).setCSS('text-align', 'center'),
+		}).on('ping', function() {
+
+			var movesLeft = player.movesLeft;
+
+			if (player.movesLeft < player.movesTo) {
+				movesLeft++;
+			} else if (player.movesLeft > player.movesTo) {
+				movesLeft--;
+			}
+
+			if (movesLeft != player.movesLeft) {
+				player.movesLeft = movesLeft;
+				sprites.movesLeft.set('text', DGE.sprintf('Move%s Left', (movesLeft == 1) ? '' : 's'));
+				this.set('text', movesLeft);
+			}
+
+		}).setCSS('text-align', 'center').start(),
 
 		notice : new DGE.Text({
+			width : 500,
+			height : 50,
 			z : Z_UI
-		}),
+		}).hide().setCSS('text-align', 'center'),
 
 		pieces : [],
 
 		speaker : new DGE.Sprite({
-// TODO
 			cursor : true,
 			image : assets.soundOn,
 			width : 64,
@@ -233,15 +300,6 @@ var init = function() {
 
 	};
 
-	new DGE.Text({
-		color : '#A3A4AA',
-		size : 14,
-		text : 'Moves Left',
-		width : 170,
-		x : 0,
-		y : 294
-	}).setCSS('text-align', 'center');
-
 	audio.music.play();
 	newGame();
 
@@ -254,6 +312,7 @@ function clickPiece(px, py) {
 	var pieceClicked = getPieceByPXY(px, py);
 
 	sprites.cursor.centerOn(pieceClicked).show();
+// TODO: should centerOn do this manually? yes, i think so
 	sprites.cursor.plot(
 		(sprites.cursor.x + sprites.board.x),
 		(sprites.cursor.y + sprites.board.y)
@@ -274,9 +333,9 @@ function clickPiece(px, py) {
 	}
 //console.log('that was a move, off we go');
 
+	busy = true;
 	var numToMove = 2;
 	var pieceCursor = getPieceByPXY(psx, psy);
-	busy = true;
 
 	board.swapPieces(px, py, psx, psy);
 
@@ -289,38 +348,33 @@ function clickPiece(px, py) {
 
 			if (board.hasMatches()) {
 
-DGE.debug('we got a valid move, lez try it out');
+DGE.log('we got a valid move, run execMatches()');
 
 				execMatches();
 
 			} else {
 
-				// Invalid move!
 				audio.invalidMove.play();
-				if (--player.movesTo == 0) newGame();
 				showNotice('Invalid move', '#EB0405');
 
-				pieceCursor.animate({
-					x : {
-						from : pieceCursor.x,
-						to : pieceClicked.x
-					},
-					y : {
-						from : pieceCursor.y,
-						to : pieceClicked.y
-					},
-				}, (INTERVAL_MATCH / 3));
+				var cursorToX = pieceClicked.x;
+				var cursorToY = pieceClicked.y;
+				var clickedToX = pieceCursor.x;
+				var clickedToY = pieceCursor.y;
 
+				pieceCursor.animate({
+					x : cursorToX,
+					y : cursorToY
+				}, DELAY_ERROR);
+
+// this one doesn't move:
 				pieceClicked.animate({
-					x : {
-						from : pieceClicked.x,
-						to : pieceCursor.x
-					},
-					y : {
-						from : pieceClicked.y,
-						to : pieceCursor.y
-					},
-				}, (INTERVAL_MATCH / 3));
+					x : clickedToX,
+					y : clickedToY
+				}, DELAY_ERROR);
+
+// TODO: new game flow
+if (--player.movesTo == 0) newGame();
 
 			}
 
@@ -328,26 +382,14 @@ DGE.debug('we got a valid move, lez try it out');
 	};
 
 	pieceCursor.animate({
-		x : {
-			from : pieceCursor.x,
-			to : pieceClicked.x
-		},
-		y : {
-			from : pieceCursor.y,
-			to : pieceClicked.y
-		},
-	}, INTERVAL_MATCH, callbacks);
+		x : pieceClicked.x,
+		y : pieceClicked.y
+	}, DELAY_MOVE, callbacks);
 
 	pieceClicked.animate({
-		x : {
-			from : pieceClicked.x,
-			to : pieceCursor.x
-		},
-		y : {
-			from : pieceClicked.y,
-			to : pieceCursor.y
-		},
-	}, INTERVAL_MATCH, callbacks);
+		x : pieceCursor.x,
+		y : pieceCursor.y
+	}, DELAY_MOVE, callbacks);
 
 };
 
@@ -364,35 +406,40 @@ function execMatches() {
 
 	var matches = board.getPiecesMatched();
 
-DGE.debug('matches:', matches);
+DGE.log('matches:', matches);
 
 	for (var i = 0; i < matches.length; i++) {
 
-		var coords = matches[i];
-		var piece = getPieceByPXY(coords.x, coords.y);
+		var piece = getPieceByPXY(matches[i].x, matches[i].y);
 
 		piece.anchorToStage();
+
+		var x = piece.x;
+		var y = DGE.stage.height;
 
 		switch (piece.get('type')) {
 			case 0: // diamond
 			case 1: // money
 			case 2: // coin
-				var pieceTo = layers.play.moneyIcon;
+				x = sprites.moneyIcon.x;
+				y = sprites.moneyIcon.y;
 				break;
 			case 3: // bomb
-				var pieceTo = layers.play.bombsIcon;
+				x = sprites.bombsIcon.x;
+				y = sprites.bombsIcon.y;
 				break;
 			case 4: // clock
-				var pieceTo = layers.play.movesIcon;
+				x = sprites.movesText.x;
+				y = sprites.movesText.y;
 				break;
 		}
 
-		if (pieceTo) {
-			piece.angleTo(pieceTo, true);
-		} else {
-			piece.angle(270);
-			piece.move = DGE.Sprite.move.angle;
-		}
+		piece.set('z', Z_PIECE_MOVING);
+
+		piece.animate({
+			x : x,
+			y : y
+		}, DELAY_MATCH, {}, 'easeIn');
 
 	}
 
@@ -426,6 +473,7 @@ function newGame() {
 	setBoard();
 
 	sprites.cursor.hide();
+	sprites.movesText.set('text', player.movesLeft);
 
 };
 
@@ -439,18 +487,14 @@ function setBoard() {
 
 			sprites.pieces[x].push(new DGE.Sprite({
 				cursor : true,
-// TODO
-//				group : GROUP_PIECE,
 				image : pieceTypes[pieces[x][y]],
 				parent : sprites.board,
 				velocity : VELOCITY_PIECE,
 				width : PIECE_SIZE,
 				height : PIECE_SIZE,
 				x : ((PIECE_SIZE * x) + 2),
-				y : ((PIECE_SIZE * y) + 1),
-				z : Z_PIECE
+				y : ((PIECE_SIZE * y) + 1)
 			}).on('click', function() {
-// TODO
 				clickPieceByCoords(this.x, this.y);
 			}));
 
@@ -461,28 +505,25 @@ function setBoard() {
 
 };
 
-function showNotice(msg, color, size) {
+function showNotice(text, color, size) {
 
 	size = (size || 30);
 
 	sprites.notice
-		.color(color)
-		.text(msg)
+	.set({
+		color : color,
+		opacity : 1,
+		size : size,
+		text : text
+	})
 		.show()
 		.center()
 		.animate({
-			opacity : {
-				from : 1,
-				to : 0
-			},
-			size : {
-				from : size,
-				to : (size * 2)
-			}
-		}, INTERVAL_NOTICE, {
+			opacity : 0,
+			size : (size * 2)
+		}, DELAY_NOTICE, {
 			complete : function() {
-				this.hide();
-				this.size(size);
+				this.hide().set('size', size);
 			},
 			tween : function() {
 				this.center();
