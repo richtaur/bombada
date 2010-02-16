@@ -78,13 +78,13 @@ var board = exports.board;
 // Constants kinda
 var DEFAULT_NUM_MOVES = 10;
 var DELAY_ERROR = 100;
-var DELAY_MATCH = 750;
+var DELAY_MATCH = 500;
 var DELAY_MOVE = 250;
 var DELAY_NOTICE = 750;
 var PIECE_SIZE = 36;
 var PIECES_X = 8;
 var PIECES_Y = 8;
-var VELOCITY_PIECE = 10;
+var VELOCITY_PIECE = 15;
 var Z_UI = 5; // Stuff like mute button: always on top on all game UI.
 var Z_CURSOR = 4; // Above the pieces.
 var Z_PIECE_MOVING = 3; // Moving, so above the other pieces to prevent visual clutter.
@@ -267,6 +267,7 @@ var init = function() {
 
 		pieces : [],
 
+/*
 		speaker : new DGE.Sprite({
 			cursor : true,
 			image : assets.soundOn,
@@ -289,6 +290,7 @@ var init = function() {
 			}
 
 		}),
+*/
 
 		version : new DGE.Text({
 			color : '#FFF',
@@ -414,32 +416,25 @@ DGE.log('matches:', matches);
 
 		piece.anchorToStage();
 
-		var x = piece.x;
-		var y = DGE.stage.height;
-
 		switch (piece.get('type')) {
-			case 0: // diamond
-			case 1: // money
-			case 2: // coin
-				x = sprites.moneyIcon.x;
-				y = sprites.moneyIcon.y;
+			case 0: // Diamond.
+			case 1: // Money.
+			case 2: // Coin.
+				piece.angleTo(sprites.moneyIcon, true);
 				break;
-			case 3: // bomb
-				x = sprites.bombsIcon.x;
-				y = sprites.bombsIcon.y;
+			case 3: // Bomb.
+				piece.angleTo(sprites.bombsIcon, true);
 				break;
-			case 4: // clock
-				x = sprites.movesText.x;
-				y = sprites.movesText.y;
+			case 4: // Clock.
+				piece.angleTo(sprites.movesText, true);
+				break;
+			default: // Everything else.
+				piece.set('angle', 270);
+				piece.set('framesMax', 30);
 				break;
 		}
 
-		piece.set('z', Z_PIECE_MOVING);
-
-		piece.animate({
-			x : x,
-			y : y
-		}, DELAY_MATCH, {}, 'easeIn');
+		piece.set('moving', true).start();
 
 	}
 
@@ -482,10 +477,18 @@ function setBoard() {
 	var pieces = board.getPieces();
 
 	for (var x = 0; x < PIECES_X; x++) {
-		sprites.pieces[x] = [];
+
+		if (!sprites.pieces[x]) {
+			sprites.pieces[x] = [];
+		}
+
 		for (var y = 0; y < PIECES_Y; y++) {
 
-			sprites.pieces[x].push(new DGE.Sprite({
+			if (sprites.pieces[x][y]) {
+				sprites.pieces[x][y].remove();
+			}
+
+			sprites.pieces[x][y] = new DGE.Sprite({
 				cursor : true,
 				image : pieceTypes[pieces[x][y]],
 				parent : sprites.board,
@@ -496,7 +499,7 @@ function setBoard() {
 				y : ((PIECE_SIZE * y) + 1)
 			}).on('click', function() {
 				clickPieceByCoords(this.x, this.y);
-			}));
+			});
 
 			sprites.pieces[x][y].set('type', pieces[x][y]);
 
