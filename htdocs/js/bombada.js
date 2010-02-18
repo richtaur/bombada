@@ -3,9 +3,6 @@
 - down the road, OPTIMIZE! probably make a single asset/SpriteSheet
 
 things left before beta is done:
-- have an overlay with a Game Over modal
-	it should tell your your score and if you beat the old score
-	with an OK button
 - finish flow (select pieces, earn points, drop bombs, etc.)
 - music/sound effects from josh
 - export to Android
@@ -13,12 +10,20 @@ things left before beta is done:
 
 */
 
+/*
+DGE.init({
+	id : 'bombada',
+	width : 480,
+	height : 320
+}).fill('#000');
+*/
+
 (function() {
 
 var board = exports.board;
 
 // Constants kinda.
-var DEFAULT_NUM_MOVES = 1; // TODO
+var DEFAULT_NUM_MOVES = 1; // TODO: set back to 10 when done debugging gameover flow
 var DELAY_ERROR = 100;
 var DELAY_MATCH = 500;
 var DELAY_MOVE = 250;
@@ -338,11 +343,6 @@ function clickPiece(px, py) {
 	var pieceClicked = getPieceByPXY(px, py);
 
 	sprites.cursor.centerOn(pieceClicked).show();
-// TODO: should centerOn do this manually? yes, i think so
-	sprites.cursor.plot(
-		(sprites.cursor.x + sprites.board.x),
-		(sprites.cursor.y + sprites.board.y)
-	);
 
 	var psx = player.selected.px;
 	var psy = player.selected.py;
