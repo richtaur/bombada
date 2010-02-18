@@ -3,89 +3,35 @@
 - down the road, OPTIMIZE! probably make a single asset/SpriteSheet
 
 things left before beta is done:
+- have an overlay with a Game Over modal
+	it should tell your your score and if you beat the old score
+	with an OK button
 - finish flow (select pieces, earn points, drop bombs, etc.)
 - music/sound effects from josh
 - export to Android
 - and iPhone
-- have an overlay with a Game Over modal
-	it should tell your your score and if you beat the old score
-	with an OK button
 
-*/
-
-/*
-DGE.init({
-	id : 'bombada',
-	width : 480,
-	height : 320
-}).fill('#000');
-
-var sprite = new DGE.Sprite({
-	width : 50,
-	height : 50
-}).fill('blue');
-
-var stage = 0;
-var x = 430;
-var y = 0;
-
-var callbacks = {
-	complete : function() {
-		init();
-	},
-	tween : function() {
-		//DGE.log('tween');
-	}
-};
-
-function init() {
-
-	if (++stage == 4) stage = 0;
-
-	switch (stage) {
-		case 0:
-			x = 0;
-			y = 0;
-			break;
-		case 1:
-			x = 430;
-			y = 0;
-			break;
-		case 2:
-			x = 430;
-			y = 270;
-			break;
-		case 3:
-			x = 0;
-			y = 270;
-			break;
-	}
-
-	sprite.animate({
-		x : x,
-		y : y
-	}, 500, callbacks);
-	
-};
-
-init();
 */
 
 (function() {
 
 var board = exports.board;
 
-// Constants kinda
-var DEFAULT_NUM_MOVES = 10;
+// Constants kinda.
+var DEFAULT_NUM_MOVES = 1; // TODO
 var DELAY_ERROR = 100;
 var DELAY_MATCH = 500;
 var DELAY_MOVE = 250;
 var DELAY_NOTICE = 750;
+var MONEY_INCREMENT = 1;
 var PIECE_SIZE = 36;
+var PIECE_DOLLAR = 1;
+var PIECE_BOMB = 3;
 var PIECES_X = 8;
 var PIECES_Y = 8;
 var VELOCITY_PIECE = 15;
-var Z_UI = 5; // Stuff like mute button: always on top on all game UI.
+var Z_MODAL = 6; // The game over message stuff.
+var Z_OVERLAY = 5; // Over everything but the stuff within the game over modal.
 var Z_CURSOR = 4; // Above the pieces.
 var Z_PIECE_MOVING = 3; // Moving, so above the other pieces to prevent visual clutter.
 var Z_PIECE = 2; // Above the background.
@@ -98,6 +44,7 @@ var assets = {
 };
 var audio;
 var busy;
+var highScore;
 var pieceTypes = [
 	'gfx/480x320/piece_diamond.png',
 	'gfx/480x320/piece_money.png',
@@ -107,14 +54,15 @@ var pieceTypes = [
 	'gfx/480x320/piece_key.png',
 	'gfx/480x320/piece_pill.png'
 ];
-var player = {
-	movesLeft : 0,
-	movesTo : 0,
-	selected : {}
-};
+var pieceWorth = [
+	50, // Diamond.
+	5, // Dollar.
+	1 // Coin.
+];
+var player;
 var sprites;
 
-var init = function() {
+function init() {
 
 	DGE.init({
 		id : 'bombada',
@@ -123,13 +71,19 @@ var init = function() {
 		height : 320
 	});
 
+	highScore = DGE.Data.get('highScore');
+	if (!highScore) highScore = 10000;
+	DGE.Data.set('highScore', highScore);
+
 	DGE.Text.defaults.color = '#FFF';
 	DGE.Text.defaults.font = 'Lucida Grande, Helvetica, Sans-Serif';
 	DGE.Text.defaults.shadow = '2px 2px 2px #000';
+	DGE.Text.defaults.size = 20;
+	DGE.Text.defaults.height = 30;
 
 	board.set('getNewPiece', function() {
 
-		if (DGE.rand(1, 10) == 1) { // 10% chance of a diamond
+		if (DGE.rand(1, 10) == 1) { // 10% chance for a diamond.
 			return 0;
 		} else {
 			return DGE.rand(1, (pieceTypes.length - 1));
@@ -162,7 +116,7 @@ var init = function() {
 		}),
 
 		bombsIcon : new DGE.Sprite({
-			image : pieceTypes[3],
+			image : pieceTypes[PIECE_BOMB],
 			width : PIECE_SIZE,
 			height : PIECE_SIZE,
 			x : 10,
@@ -177,7 +131,19 @@ var init = function() {
 			height : 42,
 			x : 60,
 			y : 110
-		}),
+		}).on('ping', function() {
+
+			if (player.bombs == player.bombsTo) return;
+
+			if (player.bombs < player.bombsTo) {
+				player.bombs++;
+			} else if (player.bombs > player.bombsTo) {
+				player.bombs--;
+			}
+
+			this.set('text', DGE.formatNumber(player.bombs));
+
+		}).start(),
 
 		cursor : new DGE.Sprite({
 			cursor : true,
@@ -205,8 +171,14 @@ var init = function() {
 
 		}).start(),
 
+		modal : new DGE.Sprite({
+			width : DGE.stage.width,
+			height : DGE.stage.height,
+			z : Z_MODAL
+		}).hide(),
+
 		moneyIcon : new DGE.Sprite({
-			image : pieceTypes[1],
+			image : pieceTypes[PIECE_DOLLAR],
 			width : PIECE_SIZE,
 			height : PIECE_SIZE,
 			x : 10,
@@ -221,9 +193,22 @@ var init = function() {
 			height : 42,
 			x : 60,
 			y : 150
-		}),
+		}).on('ping', function() {
 
-		movesLeft : new DGE.Text({
+			if (player.money == player.moneyTo) return;
+
+			if (player.money < player.moneyTo) {
+				player.money += MONEY_INCREMENT;
+			} else if (player.money > player.moneyTo) {
+				player.money -= MONEY_INCREMENT;
+			}
+
+			this.set('text', DGE.formatNumber(player.money));
+
+		}).start(),
+
+		moves : new DGE.Text({
+			align : 'center',
 			color : '#A3A4AA',
 			size : 14,
 			text : 'Moves Left',
@@ -231,10 +216,10 @@ var init = function() {
 			height : 14,
 			x : 0,
 			y : 294
-		}).setCSS('text-align', 'center'),
-// TODO: get rid of all the text-align centres and replace with format center, once you figure that out
+		}),
 
 		movesText : new DGE.Text({
+			align : 'center',
 			font : 'Helvetica, Sans-Serif',
 			size : 64,
 			width : 170,
@@ -243,27 +228,31 @@ var init = function() {
 			y : 230
 		}).on('ping', function() {
 
-			var movesLeft = player.movesLeft;
+			if (player.moves == player.movesTo) return;
 
-			if (player.movesLeft < player.movesTo) {
-				movesLeft++;
-			} else if (player.movesLeft > player.movesTo) {
-				movesLeft--;
+			if (player.moves < player.movesTo) {
+				player.moves++;
+			} else if (player.moves > player.movesTo) {
+				player.moves--;
 			}
 
-			if (movesLeft != player.movesLeft) {
-				player.movesLeft = movesLeft;
-				sprites.movesLeft.set('text', DGE.sprintf('Move%s Left', (movesLeft == 1) ? '' : 's'));
-				this.set('text', movesLeft);
-			}
+			this.set('text', DGE.formatNumber(player.moves));
 
-		}).setCSS('text-align', 'center').start(),
+		}).start(),
 
 		notice : new DGE.Text({
+			align : 'center',
 			width : 500,
 			height : 50,
-			z : Z_UI
-		}).hide().setCSS('text-align', 'center'),
+			z : Z_MODAL
+		}).hide(),
+
+		overlay : new DGE.Sprite({
+			opacity : 0.9,
+			width : DGE.stage.width,
+			height : DGE.stage.height,
+			z : Z_OVERLAY
+		}).fill('#000').hide(),
 
 		pieces : [],
 
@@ -274,8 +263,7 @@ var init = function() {
 			width : 64,
 			height : 53,
 			x : 262,
-			y : 30,
-			z : Z_UI
+			y : 30
 		}).on('click', function() {
 
 			if (DGE.Audio.enabled) {
@@ -299,6 +287,42 @@ var init = function() {
 			x : 140,
 			y : 55
 		})
+
+	};
+
+	sprites.gameOver = {
+		header : new DGE.Text({
+			align : 'center',
+			parent : sprites.modal,
+			size : 40,
+			text : 'Game Over',
+			width : DGE.stage.width,
+			height : 50,
+			y : 50
+		}),
+		yourScore : new DGE.Text({
+			align : 'center',
+			parent : sprites.modal,
+			width : DGE.stage.width,
+			height : 30,
+			y : 120
+		}),
+		highScore : new DGE.Text({
+			align : 'center',
+			parent : sprites.modal,
+			width : DGE.stage.width,
+			height : 30,
+			y : 145
+		}),
+		playAgain : new DGE.Text({
+			align : 'center',
+			cursor : true,
+			parent : sprites.modal,
+			width : DGE.stage.width,
+			text : 'Play Again?',
+			height : 30,
+			y : 200
+		}).on('click', newGame)
 
 	};
 
@@ -327,13 +351,8 @@ function clickPiece(px, py) {
 		px : px,
 		py : py
 	};
-//console.log('selected:', player.selected);
 
-	if (!board.isAdjacent(psx, psy, px, py)) {
-//console.log('not a m, its a selection');
-		return;
-	}
-//console.log('that was a move, off we go');
+	if (!board.isAdjacent(psx, psy, px, py)) return;
 
 	busy = true;
 	var numToMove = 2;
@@ -349,15 +368,14 @@ function clickPiece(px, py) {
 			if (busy) return;
 
 			if (board.hasMatches()) {
-
-DGE.log('we got a valid move, run execMatches()');
-
 				execMatches();
-
 			} else {
 
 				audio.invalidMove.play();
-				showNotice('Invalid move', '#EB0405');
+				showNotice('Invalid move', '#EB0405', function() {
+					busy = false;
+					if (--player.movesTo == 0) gameOver();
+				});
 
 				var cursorToX = pieceClicked.x;
 				var cursorToY = pieceClicked.y;
@@ -369,14 +387,10 @@ DGE.log('we got a valid move, run execMatches()');
 					y : cursorToY
 				}, DELAY_ERROR);
 
-// this one doesn't move:
 				pieceClicked.animate({
 					x : clickedToX,
 					y : clickedToY
 				}, DELAY_ERROR);
-
-// TODO: new game flow
-if (--player.movesTo == 0) newGame();
 
 			}
 
@@ -408,7 +422,7 @@ function execMatches() {
 
 	var matches = board.getPiecesMatched();
 
-DGE.log('matches:', matches);
+console.log('matches:', matches);
 
 	for (var i = 0; i < matches.length; i++) {
 
@@ -420,13 +434,37 @@ DGE.log('matches:', matches);
 			case 0: // Diamond.
 			case 1: // Money.
 			case 2: // Coin.
-				piece.angleTo(sprites.moneyIcon, true);
+				piece.set('angle', piece.getAngleTo(sprites.moneyIcon));
+				piece.on('ping', function() {
+
+					if (this.isTouching(sprites.moneyIcon)) {
+						player.moneyTo += pieceWorth[this.get('type')];
+						this.remove();
+					}
+
+				});
 				break;
 			case 3: // Bomb.
-				piece.angleTo(sprites.bombsIcon, true);
+				piece.set('angle', piece.getAngleTo(sprites.bombsIcon));
+				piece.on('ping', function() {
+
+					if (this.isTouching(sprites.bombsIcon)) {
+						player.bombsTo++;
+						this.remove();
+					}
+
+				});
 				break;
 			case 4: // Clock.
-				piece.angleTo(sprites.movesText, true);
+				piece.set('angle', piece.getAngleTo(sprites.movesText.getCenter()));
+				piece.on('ping', function() {
+
+					if (this.isTouching(sprites.movesText)) {
+						player.movesTo++;
+						this.remove();
+					}
+
+				});
 				break;
 			default: // Everything else.
 				piece.set('angle', 270);
@@ -437,6 +475,16 @@ DGE.log('matches:', matches);
 		piece.set('moving', true).start();
 
 	}
+
+};
+
+function gameOver() {
+
+	sprites.gameOver.yourScore.set('text', ('Your Score: ' + DGE.formatNumber(player.money)));
+	sprites.gameOver.highScore.set('text', ('High Score: ' + DGE.formatNumber(highScore)));
+
+	sprites.modal.show();
+	sprites.overlay.show();
 
 };
 
@@ -460,15 +508,23 @@ function getPieceByPXY(px, py) {
 
 function newGame() {
 
-	player.movesLeft = DEFAULT_NUM_MOVES;
-	player.movesTo = DEFAULT_NUM_MOVES;
+	player = {
+		bombs : 0,
+		bombsTo : 0,
+		money : 0,
+		moneyTo : 0,
+		moves : DEFAULT_NUM_MOVES,
+		movesTo : DEFAULT_NUM_MOVES,
+		selected : {}
+	};
 
 	board.reset();
-	//DGE.Sprite.getByGroup(GROUP_PIECE, 'remove');
 	setBoard();
-
 	sprites.cursor.hide();
-	sprites.movesText.set('text', player.movesLeft);
+	sprites.movesText.set('text', player.moves);
+
+	sprites.modal.hide();
+	sprites.overlay.hide();
 
 };
 
@@ -508,25 +564,24 @@ function setBoard() {
 
 };
 
-function showNotice(text, color, size) {
-
-	size = (size || 30);
+function showNotice(text, color, complete) {
 
 	sprites.notice
-	.set({
-		color : color,
-		opacity : 1,
-		size : size,
-		text : text
-	})
+		.set({
+			color : color,
+			opacity : 1,
+			size : 30,
+			text : text
+		})
 		.show()
 		.center()
 		.animate({
 			opacity : 0,
-			size : (size * 2)
+			size : 60
 		}, DELAY_NOTICE, {
 			complete : function() {
-				this.hide().set('size', size);
+				this.hide();
+				if (complete) complete();
 			},
 			tween : function() {
 				this.center();
