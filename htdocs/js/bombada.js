@@ -1,3 +1,4 @@
+// TODO: replace all px/py with pieceX/pieceY for readability (semantics)
 /*
 
 - down the road, OPTIMIZE! probably make a single asset/SpriteSheet
@@ -28,6 +29,7 @@ var DELAY_ERROR = 100;
 var DELAY_MATCH = 500;
 var DELAY_MOVE = 250;
 var DELAY_NOTICE = 750;
+var FRAMES_FALLING = 30;
 var MONEY_INCREMENT = 1;
 var PIECE_SIZE = 36;
 var PIECE_DOLLAR = 1;
@@ -67,6 +69,10 @@ var pieceWorth = [
 var player;
 var sprites;
 
+/**
+ * Initializes Bombada.
+ * @method init
+ */
 function init() {
 
 	DGE.init({
@@ -86,15 +92,7 @@ function init() {
 	DGE.Text.defaults.size = 20;
 	DGE.Text.defaults.height = 30;
 
-	board.set('getNewPiece', function() {
-
-		if (DGE.rand(1, 10) == 1) { // 10% chance for a diamond.
-			return 0;
-		} else {
-			return DGE.rand(1, (pieceTypes.length - 1));
-		}
-
-	});
+	board.set('getNewPiece', getNewPiece);
 
 	new DGE.Loader([assets]);
 
@@ -160,15 +158,15 @@ function init() {
 			z : Z_CURSOR
 		}).on('ping', function() {
 
-			var inc = 0.01;
+			var offset = 0.015;
 
 			if (this.get('direction')) {
-				this.offset('opacity', inc);
+				this.offset('opacity', offset);
 				if (this.get('opacity') >= 1) {
 					this.set('direction', false);
 				}
 			} else {
-				this.offset('opacity', -inc);
+				this.offset('opacity', -offset);
 				if (this.get('opacity') <= 0.5) {
 					this.set('direction', true);
 				}
@@ -336,6 +334,12 @@ function init() {
 
 };
 
+/**
+ * Initiates a click on a piece.
+ * @param {Number} px The X coordinate of the piece to click.
+ * @param {Number} py The Y coordinate of the piece to click.
+ * @method clickPiece
+ */
 function clickPiece(px, py) {
 
 	if (busy) return;
@@ -409,6 +413,12 @@ function clickPiece(px, py) {
 
 };
 
+/**
+ * Clicks a piece based on X and Y coordinates (a helper function for clickPiece).
+ * @param {Number} x The X coordinate of the piece to click.
+ * @param {Number} y The Y coordinate of the piece to click.
+ * @method clickPieceByCoords
+ */
 function clickPieceByCoords(x, y) {
 
 	var px = ((x - 2) / PIECE_SIZE);
@@ -418,15 +428,22 @@ function clickPieceByCoords(x, y) {
 
 };
 
+/**
+ * Executes any matches on the board.
+ * @method execMatches
+ */
 function execMatches() {
 
 	var matches = board.getPiecesMatched();
+	var pieces = board.getPieces();
 
 console.log('matches:', matches);
 
 	for (var i = 0; i < matches.length; i++) {
 
-		var piece = getPieceByPXY(matches[i].x, matches[i].y);
+		var x = matches[i].x;
+		var y = matches[i].y;
+		var piece = getPieceByPXY(x, y);
 
 		piece.anchorToStage();
 
@@ -468,16 +485,81 @@ console.log('matches:', matches);
 				break;
 			default: // Everything else.
 				piece.set('angle', 270);
-				piece.set('framesMax', 30);
+				piece.set('framesMax', FRAMES_FALLING);
+				piece.on('ping', function() {
+					if (this.isOutOfBounds(true)) this.remove();
+				});
 				break;
 		}
 
 		piece.set('moving', true).start();
+		pieces[x][y] = false;
+
+	}
+
+	board.setPieces(pieces);
+	dropNewPieces();
+
+};
+
+/**
+ * Drops new pieces.
+ * @method dropNewPieces
+ */
+function dropNewPieces() {
+
+	var toDrop = [];
+	var pieces = board.getPieces();
+	var stack = [];
+
+	for (var x = 0; x < PIECES_X; x++) {
+		for (var y = 0; y < PIECES_Y; y++) {
+			if (pieces[x][y] === false) {
+
+				var newPiece = false;
+				var yAbove = (y - 1);
+
+				if (y == 0) {
+					newPiece = true;
+				} else {
+					if (pieces[x][yAbove] === false) {
+						newPiece = true;
+					} else {
+						toDrop.push(getPieceByPXY(x, yAbove));
+					}
+				}
+
+				if (newPiece) {
+
+					stack[x] = ((stack[x] || 0) + 1);
+
+					toDrop.push(makePiece(x, -stack[x], getNewPiece()));
+
+				}
+
+			}
+		}
+	}
+
+	for (var i = 0; i < toDrop.length; i++) {
+
+		toDrop[i]
+			.set('angle', 270)
+			.set('framesMax', FRAMES_FALLING)
+			.set('moving', true)
+			.on('ping', function() {
+//DGE.log('uh...');
+				
+			}).start();
 
 	}
 
 };
 
+/**
+ * Shows the game over modal.
+ * @method gameOver
+ */
 function gameOver() {
 
 	sprites.gameOver.yourScore.set('text', ('Your Score: ' + DGE.formatNumber(player.money)));
@@ -488,6 +570,27 @@ function gameOver() {
 
 };
 
+/**
+ * Gets a new (random) piece type for the board.
+ * @return {Number} A random piece type.
+ */
+function getNewPiece() {
+
+	if (DGE.rand(1, 10) == 1) { // 10% chance for a diamond.
+		return 0;
+	} else {
+		return DGE.rand(1, (pieceTypes.length - 1));
+	}
+
+};
+
+/**
+ * Gets a piece by its piece X/Y coordinates.
+ * @param {Number} px The X coordinate of the piece to click.
+ * @param {Number} py The Y coordinate of the piece to click.
+ * @return {Object} The Sprite at the passed piece coordinates.
+ * @method getPieceByPXY
+ */
 function getPieceByPXY(px, py) {
 
 	var testX = ((PIECE_SIZE * px) + 2);
@@ -506,6 +609,38 @@ function getPieceByPXY(px, py) {
 
 };
 
+/**
+ * Makes a new piece at the passed piece coordinates.
+ * @param {Number} x The X coordinate of the piece to make.
+ * @param {Number} y The Y coordinate of the piece to make.
+ * @param {Number} type The type of piece to make.
+ * @return {Object} The new piece.
+ * @method makePiece
+ */
+function makePiece(x, y, type) {
+
+	return new DGE.Sprite({
+		cursor : true,
+		image : pieceTypes[type],
+		parent : sprites.board,
+		pieceX : x,
+		pieceY : y,
+		type : type,
+		velocity : VELOCITY_PIECE,
+		width : PIECE_SIZE,
+		height : PIECE_SIZE,
+		x : ((PIECE_SIZE * x) + 2),
+		y : ((PIECE_SIZE * y) + 1)
+	}).on('click', function() {
+		clickPieceByCoords(this.x, this.y);
+	});
+
+};
+
+/**
+ * Starts a new game.
+ * @method newGame
+ */
 function newGame() {
 
 	player = {
@@ -528,6 +663,10 @@ function newGame() {
 
 };
 
+/**
+ * Sets up the board, including populating sprites.pieces appropriately and removing any old sprites.
+ * @method setBoard
+ */
 function setBoard() {
 
 	var pieces = board.getPieces();
@@ -544,26 +683,20 @@ function setBoard() {
 				sprites.pieces[x][y].remove();
 			}
 
-			sprites.pieces[x][y] = new DGE.Sprite({
-				cursor : true,
-				image : pieceTypes[pieces[x][y]],
-				parent : sprites.board,
-				velocity : VELOCITY_PIECE,
-				width : PIECE_SIZE,
-				height : PIECE_SIZE,
-				x : ((PIECE_SIZE * x) + 2),
-				y : ((PIECE_SIZE * y) + 1)
-			}).on('click', function() {
-				clickPieceByCoords(this.x, this.y);
-			});
-
-			sprites.pieces[x][y].set('type', pieces[x][y]);
+			sprites.pieces[x][y] = makePiece(x, y, pieces[x][y]);
 
 		}
 	}
 
 };
 
+/**
+ * Shows the user a notice message.
+ * @param {String} text The text to display.
+ * @param {String} color The color of the text.
+ * @param {Function} complete (optional) The function to execute when complete.
+ * @method showNotice
+ */
 function showNotice(text, color, complete) {
 
 	sprites.notice
