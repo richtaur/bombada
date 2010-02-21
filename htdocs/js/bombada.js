@@ -1,4 +1,3 @@
-// TODO: replace all px/py with pieceX/pieceY for readability (semantics)
 /*
 
 - down the road, OPTIMIZE! probably make a single asset/SpriteSheet
@@ -23,14 +22,15 @@ DGE.init({
 
 var board = exports.board;
 
-// Constants kinda.
+// Constants (kinda).
 var DEFAULT_NUM_MOVES = 1; // TODO: set back to 10 when done debugging gameover flow
 var DELAY_ERROR = 100;
 var DELAY_MATCH = 500;
+var DELAY_MONEY = 10;
 var DELAY_MOVE = 250;
 var DELAY_NOTICE = 750;
 var FRAMES_FALLING = 30;
-var MONEY_INCREMENT = 1;
+var MONEY_INCREMENT = 5;
 var PIECE_SIZE = 36;
 var PIECE_DOLLAR = 1;
 var PIECE_BOMB = 3;
@@ -40,7 +40,7 @@ var VELOCITY_PIECE = 15;
 var Z_MODAL = 6; // The game over message stuff.
 var Z_OVERLAY = 5; // Over everything but the stuff within the game over modal.
 var Z_CURSOR = 4; // Above the pieces.
-var Z_PIECE_MOVING = 3; // Moving, so above the other pieces to prevent visual clutter.
+var Z_MOVING = 3; // Moving, so above the other pieces to prevent visual clutter.
 var Z_PIECE = 2; // Above the background.
 
 var assets = {
@@ -50,9 +50,19 @@ var assets = {
 	soundOff : 'gfx/volume_off.png'
 };
 var audio;
-var busy;
+var disableInput;
 var highScore;
+var movingQueue = [];
 var pieceTypes = [
+/*
+	'gfx/bombadaTiles/1.png',
+	'gfx/bombadaTiles/2.png',
+	'gfx/bombadaTiles/3.png',
+	'gfx/bombadaTiles/4.png',
+	'gfx/bombadaTiles/5.png',
+	'gfx/bombadaTiles/6.png',
+	'gfx/bombadaTiles/7.png'
+*/
 	'gfx/480x320/piece_diamond.png',
 	'gfx/480x320/piece_money.png',
 	'gfx/480x320/piece_coin.png',
@@ -66,7 +76,7 @@ var pieceWorth = [
 	5, // Dollar.
 	1 // Coin.
 ];
-var player;
+var player = {};
 var sprites;
 
 /**
@@ -190,6 +200,7 @@ function init() {
 
 		moneyText : new DGE.Text({
 			color : '#449F24',
+			delay : DELAY_MONEY,
 			size : 36,
 			text : 0,
 			width : 200,
@@ -202,8 +213,10 @@ function init() {
 
 			if (player.money < player.moneyTo) {
 				player.money += MONEY_INCREMENT;
-			} else if (player.money > player.moneyTo) {
-				player.money -= MONEY_INCREMENT;
+			}
+
+			if (player.money > player.moneyTo) {
+				player.money = player.moneyTo;
 			}
 
 			this.set('text', DGE.formatNumber(player.money));
@@ -256,8 +269,6 @@ function init() {
 			height : DGE.stage.height,
 			z : Z_OVERLAY
 		}).fill('#000').hide(),
-
-		pieces : [],
 
 /*
 		speaker : new DGE.Sprite({
@@ -329,55 +340,58 @@ function init() {
 
 	};
 
-	audio.music.play();
+	//audio.music.play();
 	newGame();
 
 };
 
 /**
  * Initiates a click on a piece.
- * @param {Number} px The X coordinate of the piece to click.
- * @param {Number} py The Y coordinate of the piece to click.
+ * @param {Number} pieceX The X coordinate of the piece to click.
+ * @param {Number} pieceY The Y coordinate of the piece to click.
  * @method clickPiece
  */
-function clickPiece(px, py) {
+function clickPiece(pieceX, pieceY) {
 
-	if (busy) return;
+	if (disableInput) return;
 
-	var pieceClicked = getPieceByPXY(px, py);
+	var pieceClicked = getPieceByPieceXY(pieceX, pieceY);
 
 	sprites.cursor.centerOn(pieceClicked).show();
 
-	var psx = player.selected.px;
-	var psy = player.selected.py;
+	var selectedPieceX = player.selected.pieceX;
+	var selectedPieceY = player.selected.pieceY;
 
 	player.selected = {
-		px : px,
-		py : py
+		pieceX : pieceX,
+		pieceY : pieceY
 	};
 
-	if (!board.isAdjacent(psx, psy, px, py)) return;
+	// We're all done if this was just a selection.
+	if (!board.isAdjacent(selectedPieceX, selectedPieceY, pieceX, pieceY)) return;
 
-	busy = true;
+	// This wasn't a selection, it was a move!
+	disableInput = true;
 	var numToMove = 2;
-	var pieceCursor = getPieceByPXY(psx, psy);
+	var pieceCursor = getPieceByPieceXY(selectedPieceX, selectedPieceY);
 
-	board.swapPieces(px, py, psx, psy);
+	board.swapPieces(pieceX, pieceY, selectedPieceX, selectedPieceY);
 
 	var callbacks = {
 		complete : function() {
 
-			busy = !!(--numToMove);
+			disableInput = !!(--numToMove);
 
-			if (busy) return;
+			if (disableInput) return;
 
 			if (board.hasMatches()) {
 				execMatches();
 			} else {
 
 				audio.invalidMove.play();
+				board.swapPieces(pieceX, pieceY, selectedPieceX, selectedPieceY);
 				showNotice('Invalid move', '#EB0405', function() {
-					busy = false;
+					disableInput = false;
 					if (--player.movesTo == 0) gameOver();
 				});
 
@@ -421,10 +435,85 @@ function clickPiece(px, py) {
  */
 function clickPieceByCoords(x, y) {
 
-	var px = ((x - 2) / PIECE_SIZE);
-	var py = ((y - 1) / PIECE_SIZE);
+	var pieceX = (x / PIECE_SIZE);
+	var pieceY = (y / PIECE_SIZE);
 
-	clickPiece(px, py);
+	clickPiece(pieceX, pieceY);
+
+};
+
+/**
+ * Applies gravity to pieces on the board and drops new ones from above.
+ * @method dropPieces
+ */
+function dropPieces() {
+
+	var holes;
+	var pieces = board.getPieces();
+	var stack = [];
+	var toDrop = [];
+
+	// Find out which pieces needed to be dropped.
+	for (var x = 0; x < PIECES_X; x++) {
+
+		holes = 0;
+		stack[x] = 0;
+
+		for (var y = (PIECES_Y - 1); y >= 0; y--) {
+
+			if (pieces[y][x] === false) {
+				holes++;
+				stack[x]++;
+			} else if (holes) {
+				toDrop.push(getPieceByPieceXY(x, y).set('maxY', ((y + holes) * PIECE_SIZE)));
+			}
+
+		}
+	}
+
+	// Drop the stacked pieces from above the board.
+	for (var x = 0; x < PIECES_X; x++) {
+		for (var i = 0; i < stack[x]; i++) {
+			toDrop.push(makePiece(x, -(i + 1), getNewPiece()).set('maxY', ((stack[x] - i - 1) * PIECE_SIZE)));
+		}
+	}
+
+	// Get the number of moving sprites so we know when we're done.
+	var numMoving = toDrop.length;
+
+	// Set gravity on the pieces to drop.
+	for (var i = 0; i < toDrop.length; i++) {
+
+		toDrop[i]
+			.set('angle', 270)
+			.set('frame', 0)
+			.set('framesMax', FRAMES_FALLING)
+			.on('ping', function() {
+
+				var maxY = this.get('maxY');
+
+				if (this.y >= maxY) {
+
+					this.set('y', maxY);
+					this.stop();
+
+					if (--numMoving == 0) {
+						board.setPieces(setBoard());
+						if (board.hasMatches()) execMatches();
+					}
+
+				}
+				
+			});
+
+	}
+
+	// Move all the sprites at the same time.
+	movingQueue = movingQueue.concat(toDrop);
+
+	for (var i = 0; i < movingQueue.length; i++) {
+		movingQueue[i].set('moving', true).start();
+	}
 
 };
 
@@ -437,15 +526,20 @@ function execMatches() {
 	var matches = board.getPiecesMatched();
 	var pieces = board.getPieces();
 
-console.log('matches:', matches);
+console.log('pieced matched: ', matches);
+
+	movingQueue = [];
 
 	for (var i = 0; i < matches.length; i++) {
 
 		var x = matches[i].x;
 		var y = matches[i].y;
-		var piece = getPieceByPXY(x, y);
+		var piece = getPieceByPieceXY(x, y);
 
-		piece.anchorToStage();
+		piece
+			.anchorToStage()
+			.set('frame', 0)
+			.set('framesMax', 0);
 
 		switch (piece.get('type')) {
 			case 0: // Diamond.
@@ -456,6 +550,7 @@ console.log('matches:', matches);
 
 					if (this.isTouching(sprites.moneyIcon)) {
 						player.moneyTo += pieceWorth[this.get('type')];
+DGE.log("calling remove() from execMatches:money");
 						this.remove();
 					}
 
@@ -467,6 +562,7 @@ console.log('matches:', matches);
 
 					if (this.isTouching(sprites.bombsIcon)) {
 						player.bombsTo++;
+DGE.log("calling remove() from execMatches:bombs");
 						this.remove();
 					}
 
@@ -478,6 +574,7 @@ console.log('matches:', matches);
 
 					if (this.isTouching(sprites.movesText)) {
 						player.movesTo++;
+DGE.log("calling remove() from execMatches:moves");
 						this.remove();
 					}
 
@@ -487,72 +584,41 @@ console.log('matches:', matches);
 				piece.set('angle', 270);
 				piece.set('framesMax', FRAMES_FALLING);
 				piece.on('ping', function() {
+if (this.isOutOfBounds(true)) DGE.log("calling remove() from execMatches:everything.else");
 					if (this.isOutOfBounds(true)) this.remove();
 				});
 				break;
 		}
 
-		piece.set('moving', true).start();
-		pieces[x][y] = false;
+		movingQueue.push(piece);
+		pieces[y][x] = false;
 
 	}
 
 	board.setPieces(pieces);
-	dropNewPieces();
 
-};
+// count sprites for debugging
+var numSprites = 0;
+for (var k in DGE.Sprite.children) {
+	numSprites++;
+}
+if (numSprites == 71) {
+	DGE.log('1. Number of sprites: ', numSprites, '(correct)');
+} else {
+	DGE.log('1. Number of sprites: ', numSprites, '(WRONG!)');
+}
+var numText = 0;
+for (var k in DGE.Text.children) {
+	numText++;
+}
+if (numText == 10) {
+	DGE.log('1. Number of texts: ', numText, '(correct)');
+} else {
+	DGE.log('1. Number of texts: ', numText, '(WRONG!)');
+}
+// /count
 
-/**
- * Drops new pieces.
- * @method dropNewPieces
- */
-function dropNewPieces() {
-
-	var toDrop = [];
-	var pieces = board.getPieces();
-	var stack = [];
-
-	for (var x = 0; x < PIECES_X; x++) {
-		for (var y = 0; y < PIECES_Y; y++) {
-			if (pieces[x][y] === false) {
-
-				var newPiece = false;
-				var yAbove = (y - 1);
-
-				if (y == 0) {
-					newPiece = true;
-				} else {
-					if (pieces[x][yAbove] === false) {
-						newPiece = true;
-					} else {
-						toDrop.push(getPieceByPXY(x, yAbove));
-					}
-				}
-
-				if (newPiece) {
-
-					stack[x] = ((stack[x] || 0) + 1);
-
-					toDrop.push(makePiece(x, -stack[x], getNewPiece()));
-
-				}
-
-			}
-		}
-	}
-
-	for (var i = 0; i < toDrop.length; i++) {
-
-		toDrop[i]
-			.set('angle', 270)
-			.set('framesMax', FRAMES_FALLING)
-			.set('moving', true)
-			.on('ping', function() {
-//DGE.log('uh...');
-				
-			}).start();
-
-	}
+	dropPieces();
 
 };
 
@@ -586,26 +652,27 @@ function getNewPiece() {
 
 /**
  * Gets a piece by its piece X/Y coordinates.
- * @param {Number} px The X coordinate of the piece to click.
- * @param {Number} py The Y coordinate of the piece to click.
+ * @param {Number} pieceX The X coordinate of the piece to click.
+ * @param {Number} pieceY The Y coordinate of the piece to click.
  * @return {Object} The Sprite at the passed piece coordinates.
- * @method getPieceByPXY
+ * @method getPieceByPieceXY
  */
-function getPieceByPXY(px, py) {
+function getPieceByPieceXY(pieceX, pieceY) {
 
-	var testX = ((PIECE_SIZE * px) + 2);
-	var testY = ((PIECE_SIZE * py) + 1);
+	var children = DGE.Sprite.getByProperty('group', 'piece');
+	var testX = (PIECE_SIZE * pieceX);
+	var testY = (PIECE_SIZE * pieceY);
 
 	for (var x = 0; x < PIECES_X; x++) {
 		for (var y = 0; y < PIECES_Y; y++) {
-
-			var sprite = sprites.pieces[x][y];
-			if (sprite.isAt(testX, testY)) return sprite;
-
+			for (var i = 0; i < children.length; i++) {
+				var sprite = children[i];
+				if (sprite.isAt(testX, testY)) return sprite;
+			}
 		}
 	}
 
-	throw DGE.sprintf("Couldn't find a piece at %s, %s", px, py);
+	throw DGE.sprintf("Couldn't find a piece at %s, %s (checked %s, %s)", pieceX, pieceY, testX, testY);
 
 };
 
@@ -621,6 +688,7 @@ function makePiece(x, y, type) {
 
 	return new DGE.Sprite({
 		cursor : true,
+		group : 'piece',
 		image : pieceTypes[type],
 		parent : sprites.board,
 		pieceX : x,
@@ -629,8 +697,8 @@ function makePiece(x, y, type) {
 		velocity : VELOCITY_PIECE,
 		width : PIECE_SIZE,
 		height : PIECE_SIZE,
-		x : ((PIECE_SIZE * x) + 2),
-		y : ((PIECE_SIZE * y) + 1)
+		x : (PIECE_SIZE * x),
+		y : (PIECE_SIZE * y)
 	}).on('click', function() {
 		clickPieceByCoords(this.x, this.y);
 	});
@@ -653,40 +721,126 @@ function newGame() {
 		selected : {}
 	};
 
+/*
+board.setPieces([
+	[1,2,4,5,6,1,0,4],
+	[4,6,4,5,5,1,3,1],
+	[5,3,2,1,5,3,3,4],
+	[4,5,6,5,2,5,5,1],
+	[2,2,1,6,5,3,4,4],
+	[5,1,4,4,5,2,3,1],
+	[1,2,5,3,6,0,4,4],
+	[3,6,1,1,4,4,6,1]
+]);
+*/
+
 	board.reset();
-	setBoard();
+	resetBoard();
 	sprites.cursor.hide();
 	sprites.movesText.set('text', player.moves);
 
 	sprites.modal.hide();
 	sprites.overlay.hide();
 
+//experiment(); // TODO: delete
+
+};
+
+// TODO: get rid of this function
+function experiment() {
+
+/*
+	var matches = board.getPossibleMatches();
+
+	while (matches.length > 1) {
+		board.reset();
+
+
+		matches = board.getPossibleMatches();
+	};
+
+	DGE.log('matches: ', matches);
+	resetBoard();
+
+*/
+	var matches = board.getPossibleMatches();
+
+	for (var i = 0; i < matches.length; i++) {
+		setTimeout((function(i) {
+			return function() {
+				getPieceByPieceXY(matches[i].fromX, matches[i].fromY).setCSS('border', '1px solid red');
+				getPieceByPieceXY(matches[i].toX, matches[i].toY).setCSS('border', '1px solid white');
+				DGE.log('from ', matches[i].fromX, matches[i].fromY, ' to ', matches[i].toX, matches[i].toY);
+			};
+		})(i), 500 * i);
+	}
+
+	var pieces = board.getPieces();
+	var tmp = '';
+
+	for (var y = 0; y < PIECES_Y; y++) {
+		tmp += "[";
+		for (var x = 0; x < PIECES_X; x++) {
+			tmp += pieces[y][x] + ",";
+		}
+		tmp = tmp.substr(0, (tmp.length - 1)) + "],\n";
+	}
+	DGE.log(matches);
+	DGE.log(tmp);
+
 };
 
 /**
- * Sets up the board, including populating sprites.pieces appropriately and removing any old sprites.
+ * Sets up the board, including removing any old sprites.
+ * @method resetBoard
+ */
+function resetBoard() {
+
+	var children = DGE.Sprite.getByProperty('group', 'piece');
+	var pieces = board.getPieces();
+
+	for (var i = 0; i < children.length; i++) {
+		children[i].remove();
+	}
+
+	for (var x = 0; x < PIECES_X; x++) {
+		for (var y = 0; y < PIECES_Y; y++) {
+			makePiece(x, y, pieces[y][x]);
+		}
+	}
+
+};
+
+/**
+ * Sets the board based on the sprites.
+ * @return {Array} A matrix of piece types.
  * @method setBoard
  */
 function setBoard() {
 
-	var pieces = board.getPieces();
+	var children = DGE.Sprite.getByProperty('group', 'piece');
+	var pieces = [];
 
-	for (var x = 0; x < PIECES_X; x++) {
+	for (var y = 0; y < PIECES_Y; y++) {
 
-		if (!sprites.pieces[x]) {
-			sprites.pieces[x] = [];
-		}
+		pieces[y] = [];
 
-		for (var y = 0; y < PIECES_Y; y++) {
+		for (var x = 0; x < PIECES_X; x++) {
 
-			if (sprites.pieces[x][y]) {
-				sprites.pieces[x][y].remove();
+			for (var i = 0; i < children.length; i++) {
+				if (children[i].get('group') == 'piece') {
+					if (children[i].isAt((PIECE_SIZE * x), (PIECE_SIZE * y))) {
+						pieces[y][x] = children[i].get('type');
+						break;
+					}
+				}
 			}
 
-			sprites.pieces[x][y] = makePiece(x, y, pieces[x][y]);
-
 		}
+
 	}
+
+	return pieces;
 
 };
 
@@ -724,5 +878,32 @@ function showNotice(text, color, complete) {
 };
 
 init();
+
+// Debugging.
+sprites.version.on('click', function() {
+
+	var pieces = board.getPieces();
+	var tmp = '';
+
+	for (var y = 0; y < PIECES_Y; y++) {
+		for (var x = 0; x < PIECES_X; x++) {
+			if (pieces[y][x] === false) {
+				tmp += '.,';
+			} else {
+				tmp += pieces[y][x] + ',';
+			}
+		}
+		tmp += "\n";
+	}
+
+	DGE.log('[Board Dump]');
+	DGE.log(tmp);
+
+});
+
+sprites.movesText.on('click', function() {
+	DGE.log('[getPossibleMatches]');
+	DGE.log(board.getPossibleMatches());
+});
 
 })();
