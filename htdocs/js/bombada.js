@@ -1,3 +1,10 @@
+// TODO: konami code easter egg
+// TODO: double click to lay a bomb (with error message if out of bombs)
+// TODO: make move decrement immediately (looks weird happening after obtaining clocks during your move)
+// TODO: Real Game Over menu
+// TODO: fade out pieces as they hit their icons
+// TODO: i don't think we're checking for hasValidMoves or whatnot at the end of a turn. so the user could be
+// presented with no possible moves :(
 /*
 
 - down the road, OPTIMIZE! probably make a single asset/SpriteSheet
@@ -23,29 +30,30 @@ DGE.init({
 var board = exports.board;
 
 // Constants (kinda).
-var DEFAULT_NUM_MOVES = 1; // TODO: set back to 10 when done debugging gameover flow
+var DEFAULT_NUM_MOVES = 10;
 var DELAY_ERROR = 100;
 var DELAY_MATCH = 500;
 var DELAY_MONEY = 10;
 var DELAY_MOVE = 250;
 var DELAY_NOTICE = 750;
 var FRAMES_FALLING = 30;
+var FRAMES_MOVING = 15;
 var MONEY_INCREMENT = 5;
 var PIECE_SIZE = 36;
-var PIECE_DOLLAR = 1;
-var PIECE_BOMB = 3;
 var PIECES_X = 8;
 var PIECES_Y = 8;
 var VELOCITY_PIECE = 15;
 var Z_MODAL = 6; // The game over message stuff.
 var Z_OVERLAY = 5; // Over everything but the stuff within the game over modal.
-var Z_CURSOR = 4; // Above the pieces.
+var Z_UI = 4; // Always above the pieces.
 var Z_MOVING = 3; // Moving, so above the other pieces to prevent visual clutter.
 var Z_PIECE = 2; // Above the background.
 
 var assets = {
 	background : 'gfx/480x320/bg.png',
 	cursor : 'gfx/480x320/cursor.png',
+	iconBomb : 'gfx/480x320/icon_bomb.png',
+	iconMoney : 'gfx/480x320/icon_money.png',
 	soundOn : 'gfx/volume_on.png',
 	soundOff : 'gfx/volume_off.png'
 };
@@ -129,21 +137,22 @@ function init() {
 		}),
 
 		bombsIcon : new DGE.Sprite({
-			image : pieceTypes[PIECE_BOMB],
-			width : PIECE_SIZE,
-			height : PIECE_SIZE,
+			image : assets.iconBomb,
+			width : 39,
+			height : 39,
 			x : 10,
-			y : 110
+			y : 140
 		}),
 
 		bombsText : new DGE.Text({
-			color : '#B62A04',
+			color : '#FE6401',
 			size : 36,
 			text : 0,
-			width : 200,
+			width : 110,
 			height : 42,
 			x : 60,
-			y : 110
+			y : 140,
+			z : Z_UI
 		}).on('ping', function() {
 
 			if (player.bombs == player.bombsTo) return;
@@ -165,19 +174,19 @@ function init() {
 			height : 54,
 			x : 53,
 			y : 2,
-			z : Z_CURSOR
+			z : Z_UI
 		}).on('ping', function() {
 
-			var offset = 0.015;
+			var offset = 1.5;
 
 			if (this.get('direction')) {
 				this.offset('opacity', offset);
-				if (this.get('opacity') >= 1) {
+				if (this.get('opacity') >= 100) {
 					this.set('direction', false);
 				}
 			} else {
 				this.offset('opacity', -offset);
-				if (this.get('opacity') <= 0.5) {
+				if (this.get('opacity') <= 45) {
 					this.set('direction', true);
 				}
 			}
@@ -191,22 +200,23 @@ function init() {
 		}).hide(),
 
 		moneyIcon : new DGE.Sprite({
-			image : pieceTypes[PIECE_DOLLAR],
-			width : PIECE_SIZE,
-			height : PIECE_SIZE,
+			image : assets.iconMoney,
+			width : 24,
+			height : 44,
 			x : 10,
-			y : 150
+			y : 80
 		}),
 
 		moneyText : new DGE.Text({
-			color : '#449F24',
+			color : '#D3B701',
 			delay : DELAY_MONEY,
 			size : 36,
 			text : 0,
-			width : 200,
+			width : 110,
 			height : 42,
 			x : 60,
-			y : 150
+			y : 80,
+			z : Z_UI
 		}).on('ping', function() {
 
 			if (player.money == player.moneyTo) return;
@@ -229,7 +239,7 @@ function init() {
 			size : 14,
 			text : 'Moves Left',
 			width : 170,
-			height : 14,
+			height : 15,
 			x : 0,
 			y : 294
 		}),
@@ -241,7 +251,8 @@ function init() {
 			width : 170,
 			height : 64,
 			x : 0,
-			y : 230
+			y : 230,
+			z : Z_UI
 		}).on('ping', function() {
 
 			if (player.moves == player.movesTo) return;
@@ -254,6 +265,8 @@ function init() {
 
 			this.set('text', DGE.formatNumber(player.moves));
 
+			if (player.moves == 0) gameOver();
+
 		}).start(),
 
 		notice : new DGE.Text({
@@ -264,7 +277,7 @@ function init() {
 		}).hide(),
 
 		overlay : new DGE.Sprite({
-			opacity : 0.9,
+			opacity : 90,
 			width : DGE.stage.width,
 			height : DGE.stage.height,
 			z : Z_OVERLAY
@@ -392,7 +405,7 @@ function clickPiece(pieceX, pieceY) {
 				board.swapPieces(pieceX, pieceY, selectedPieceX, selectedPieceY);
 				showNotice('Invalid move', '#EB0405', function() {
 					disableInput = false;
-					if (--player.movesTo == 0) gameOver();
+					player.movesTo--;
 				});
 
 				var cursorToX = pieceClicked.x;
@@ -498,8 +511,15 @@ function dropPieces() {
 					this.stop();
 
 					if (--numMoving == 0) {
+
 						board.setPieces(setBoard());
-						if (board.hasMatches()) execMatches();
+
+						if (board.hasMatches()) {
+							execMatches();
+						} else {
+							player.movesTo--;
+						}
+
 					}
 
 				}
@@ -523,23 +543,25 @@ function dropPieces() {
  */
 function execMatches() {
 
-	var matches = board.getPiecesMatched();
+	player.cascade++;
+
+	var matched = board.getPiecesMatched();
 	var pieces = board.getPieces();
 
-console.log('pieced matched: ', matches);
+console.log('[NOTICE] pieced matched: ', matched);
 
 	movingQueue = [];
 
-	for (var i = 0; i < matches.length; i++) {
+	for (var i = 0; i < matched.length; i++) {
 
-		var x = matches[i].x;
-		var y = matches[i].y;
+		var x = matched[i].x;
+		var y = matched[i].y;
 		var piece = getPieceByPieceXY(x, y);
 
 		piece
 			.anchorToStage()
 			.set('frame', 0)
-			.set('framesMax', 0);
+			.set('framesMax', FRAMES_MOVING);
 
 		switch (piece.get('type')) {
 			case 0: // Diamond.
@@ -548,9 +570,10 @@ console.log('pieced matched: ', matches);
 				piece.set('angle', piece.getAngleTo(sprites.moneyIcon));
 				piece.on('ping', function() {
 
+					this.offset('opacity', -1);
+
 					if (this.isTouching(sprites.moneyIcon)) {
 						player.moneyTo += pieceWorth[this.get('type')];
-DGE.log("calling remove() from execMatches:money");
 						this.remove();
 					}
 
@@ -560,9 +583,10 @@ DGE.log("calling remove() from execMatches:money");
 				piece.set('angle', piece.getAngleTo(sprites.bombsIcon));
 				piece.on('ping', function() {
 
+					this.offset('opacity', -1);
+
 					if (this.isTouching(sprites.bombsIcon)) {
 						player.bombsTo++;
-DGE.log("calling remove() from execMatches:bombs");
 						this.remove();
 					}
 
@@ -572,10 +596,20 @@ DGE.log("calling remove() from execMatches:bombs");
 				piece.set('angle', piece.getAngleTo(sprites.movesText.getCenter()));
 				piece.on('ping', function() {
 
+					if (!this.get('active')) return;
+
+					this.offset('opacity', -1);
+					this.offset('rotation', 12);
+
 					if (this.isTouching(sprites.movesText)) {
+
 						player.movesTo++;
-DGE.log("calling remove() from execMatches:moves");
-						this.remove();
+						this.set('active', false);
+
+						this.fade(100, function() {
+							this.remove();
+						});
+
 					}
 
 				});
@@ -583,8 +617,10 @@ DGE.log("calling remove() from execMatches:moves");
 			default: // Everything else.
 				piece.set('angle', 270);
 				piece.set('framesMax', FRAMES_FALLING);
+				piece.set('z', Z_MOVING);
 				piece.on('ping', function() {
-if (this.isOutOfBounds(true)) DGE.log("calling remove() from execMatches:everything.else");
+					this.offset('opacity', -1);
+					this.offset('rotation', 1);
 					if (this.isOutOfBounds(true)) this.remove();
 				});
 				break;
@@ -598,6 +634,7 @@ if (this.isOutOfBounds(true)) DGE.log("calling remove() from execMatches:everyth
 	board.setPieces(pieces);
 
 // count sprites for debugging
+/*
 var numSprites = 0;
 for (var k in DGE.Sprite.children) {
 	numSprites++;
@@ -612,10 +649,11 @@ for (var k in DGE.Text.children) {
 	numText++;
 }
 if (numText == 10) {
-	DGE.log('1. Number of texts: ', numText, '(correct)');
+	DGE.log('2. Number of texts: ', numText, '(correct)');
 } else {
-	DGE.log('1. Number of texts: ', numText, '(WRONG!)');
+	DGE.log('2. Number of texts: ', numText, '(WRONG!)');
 }
+*/
 // /count
 
 	dropPieces();
@@ -714,6 +752,7 @@ function newGame() {
 	player = {
 		bombs : 0,
 		bombsTo : 0,
+		cascade : 0,
 		money : 0,
 		moneyTo : 0,
 		moves : DEFAULT_NUM_MOVES,
@@ -737,12 +776,12 @@ board.setPieces([
 	board.reset();
 	resetBoard();
 	sprites.cursor.hide();
+	sprites.bombsText.set('text', player.bombs);
+	sprites.moneyText.set('text', player.money);
 	sprites.movesText.set('text', player.moves);
 
 	sprites.modal.hide();
 	sprites.overlay.hide();
-
-//experiment(); // TODO: delete
 
 };
 
@@ -856,7 +895,7 @@ function showNotice(text, color, complete) {
 	sprites.notice
 		.set({
 			color : color,
-			opacity : 1,
+			opacity : 100,
 			size : 30,
 			text : text
 		})
@@ -879,7 +918,7 @@ function showNotice(text, color, complete) {
 
 init();
 
-// Debugging.
+// Debugging
 sprites.version.on('click', function() {
 
 	var pieces = board.getPieces();
@@ -905,5 +944,6 @@ sprites.movesText.on('click', function() {
 	DGE.log('[getPossibleMatches]');
 	DGE.log(board.getPossibleMatches());
 });
+// /Debugging
 
 })();
