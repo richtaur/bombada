@@ -1,6 +1,5 @@
 // TODO: konami code easter egg
 // TODO: double click to lay a bomb (with error message if out of bombs)
-// TODO: make move decrement immediately (looks weird happening after obtaining clocks during your move)
 // TODO: Real Game Over menu
 // TODO: fade out pieces as they hit their icons
 // TODO: i don't think we're checking for hasValidMoves or whatnot at the end of a turn. so the user could be
@@ -58,7 +57,7 @@ var assets = {
 	soundOff : 'gfx/volume_off.png'
 };
 var audio;
-var disableInput;
+var busy;
 var highScore;
 var movingQueue = [];
 var pieceTypes = [
@@ -76,8 +75,8 @@ var pieceTypes = [
 	'gfx/480x320/piece_coin.png',
 	'gfx/480x320/piece_bomb.png',
 	'gfx/480x320/piece_clock.png',
-	'gfx/480x320/piece_key.png',
-	'gfx/480x320/piece_pill.png'
+	'gfx/480x320/piece_crate.png',
+	'gfx/480x320/piece_barrel.png'
 ];
 var pieceWorth = [
 	50, // Diamond.
@@ -366,7 +365,7 @@ function init() {
  */
 function clickPiece(pieceX, pieceY) {
 
-	if (disableInput) return;
+	if (busy) return;
 
 	var pieceClicked = getPieceByPieceXY(pieceX, pieceY);
 
@@ -384,7 +383,7 @@ function clickPiece(pieceX, pieceY) {
 	if (!board.isAdjacent(selectedPieceX, selectedPieceY, pieceX, pieceY)) return;
 
 	// This wasn't a selection, it was a move!
-	disableInput = true;
+	busy = true;
 	var numToMove = 2;
 	var pieceCursor = getPieceByPieceXY(selectedPieceX, selectedPieceY);
 
@@ -393,9 +392,11 @@ function clickPiece(pieceX, pieceY) {
 	var callbacks = {
 		complete : function() {
 
-			disableInput = !!(--numToMove);
+			busy = !!(--numToMove);
 
-			if (disableInput) return;
+			if (busy) return;
+
+			player.movesTo--;
 
 			if (board.hasMatches()) {
 				execMatches();
@@ -404,8 +405,7 @@ function clickPiece(pieceX, pieceY) {
 				audio.invalidMove.play();
 				board.swapPieces(pieceX, pieceY, selectedPieceX, selectedPieceY);
 				showNotice('Invalid move', '#EB0405', function() {
-					disableInput = false;
-					player.movesTo--;
+					busy = false;
 				});
 
 				var cursorToX = pieceClicked.x;
@@ -517,7 +517,7 @@ function dropPieces() {
 						if (board.hasMatches()) {
 							execMatches();
 						} else {
-							player.movesTo--;
+DGE.log('[NOTE] it is now the other players turn');
 						}
 
 					}
@@ -570,8 +570,6 @@ console.log('[NOTICE] pieced matched: ', matched);
 				piece.set('angle', piece.getAngleTo(sprites.moneyIcon));
 				piece.on('ping', function() {
 
-					this.offset('opacity', -1);
-
 					if (this.isTouching(sprites.moneyIcon)) {
 						player.moneyTo += pieceWorth[this.get('type')];
 						this.remove();
@@ -582,8 +580,6 @@ console.log('[NOTICE] pieced matched: ', matched);
 			case 3: // Bomb.
 				piece.set('angle', piece.getAngleTo(sprites.bombsIcon));
 				piece.on('ping', function() {
-
-					this.offset('opacity', -1);
 
 					if (this.isTouching(sprites.bombsIcon)) {
 						player.bombsTo++;
@@ -598,8 +594,7 @@ console.log('[NOTICE] pieced matched: ', matched);
 
 					if (!this.get('active')) return;
 
-					this.offset('opacity', -1);
-					this.offset('rotation', 12);
+					this.offset('rotation', 18);
 
 					if (this.isTouching(sprites.movesText)) {
 
