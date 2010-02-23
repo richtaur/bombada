@@ -1,9 +1,12 @@
+// TODO: don't show game over screen until the pieces are done animating
+// TODO: show notices for awesome moves (4+ match) or cascades (2+ cascade)
+// TODO: use portrait mode like a phone would be used?
 // TODO: konami code easter egg
 // TODO: double click to lay a bomb (with error message if out of bombs)
 // TODO: Real Game Over menu
-// TODO: fade out pieces as they hit their icons
-// TODO: i don't think we're checking for hasValidMoves or whatnot at the end of a turn. so the user could be
-// presented with no possible moves :(
+// TODO: polish pieces moving to their icons
+// TODO: show total moves used at Game Over screen
+// TODO: instead of "Game Over", show a message like "You can do better" or "That's all you got?"
 /*
 
 - down the road, OPTIMIZE! probably make a single asset/SpriteSheet
@@ -16,14 +19,6 @@ things left before beta is done:
 
 */
 
-/*
-DGE.init({
-	id : 'bombada',
-	width : 480,
-	height : 320
-}).fill('#000');
-*/
-
 (function() {
 
 var board = exports.board;
@@ -31,13 +26,14 @@ var board = exports.board;
 // Constants (kinda).
 var DEFAULT_NUM_MOVES = 10;
 var DELAY_ERROR = 100;
+var DELAY_FADE = 500;
 var DELAY_MATCH = 500;
 var DELAY_MONEY = 10;
 var DELAY_MOVE = 250;
 var DELAY_NOTICE = 750;
 var FRAMES_FALLING = 30;
 var FRAMES_MOVING = 15;
-var MONEY_INCREMENT = 5;
+var MONEY_INCREMENT = 1;
 var PIECE_SIZE = 36;
 var PIECES_X = 8;
 var PIECES_Y = 8;
@@ -79,9 +75,9 @@ var pieceTypes = [
 	'gfx/480x320/piece_barrel.png'
 ];
 var pieceWorth = [
-	50, // Diamond.
-	5, // Dollar.
-	1 // Coin.
+	25, // Diamond.
+	10, // Dollar.
+	5 // Coin.
 ];
 var player = {};
 var sprites;
@@ -264,8 +260,6 @@ function init() {
 
 			this.set('text', DGE.formatNumber(player.moves));
 
-			if (player.moves == 0) gameOver();
-
 		}).start(),
 
 		notice : new DGE.Text({
@@ -276,7 +270,6 @@ function init() {
 		}).hide(),
 
 		overlay : new DGE.Sprite({
-			opacity : 90,
 			width : DGE.stage.width,
 			height : DGE.stage.height,
 			z : Z_OVERLAY
@@ -406,6 +399,7 @@ function clickPiece(pieceX, pieceY) {
 				board.swapPieces(pieceX, pieceY, selectedPieceX, selectedPieceY);
 				showNotice('Invalid move', '#EB0405', function() {
 					busy = false;
+					if (player.moves == 0) gameOver();
 				});
 
 				var cursorToX = pieceClicked.x;
@@ -514,10 +508,17 @@ function dropPieces() {
 
 						board.setPieces(setBoard());
 
+DGE.log('num possible matches', board.getPossibleMatches().length);
+
 						if (board.hasMatches()) {
+DGE.log('### execMatches ...');
 							execMatches();
+						} else if (!board.hasPossibleMatches()) {
+DGE.log('### NO MATCHES, newBoard()ing');
+							newBoard();
 						} else {
-DGE.log('[NOTE] it is now the other players turn');
+DGE.log('### [NOTE] it is now the other players turn');
+							if (player.moves == 0) gameOver();
 						}
 
 					}
@@ -544,11 +545,12 @@ DGE.log('[NOTE] it is now the other players turn');
 function execMatches() {
 
 	player.cascade++;
+DGE.log('cascades: ' + player.cascade);
 
 	var matched = board.getPiecesMatched();
 	var pieces = board.getPieces();
 
-console.log('[NOTICE] pieced matched: ', matched);
+DGE.log('[NOTICE] pieces matched: ', matched);
 
 	movingQueue = [];
 
@@ -601,7 +603,7 @@ console.log('[NOTICE] pieced matched: ', matched);
 						player.movesTo++;
 						this.set('active', false);
 
-						this.fade(100, function() {
+						this.fade(0, 100, function() {
 							this.remove();
 						});
 
@@ -660,12 +662,21 @@ if (numText == 10) {
  * @method gameOver
  */
 function gameOver() {
+DGE.log('gameOver()');
 
 	sprites.gameOver.yourScore.set('text', ('Your Score: ' + DGE.formatNumber(player.money)));
 	sprites.gameOver.highScore.set('text', ('High Score: ' + DGE.formatNumber(highScore)));
 
+	sprites.modal.set('opacity', 0);
+	sprites.overlay.set('opacity', 0);
+
 	sprites.modal.show();
 	sprites.overlay.show();
+
+	sprites.modal.fade(100, DELAY_FADE);
+	sprites.overlay.fade(90, DELAY_FADE, function() {
+		
+	});
 
 };
 
@@ -739,6 +750,50 @@ function makePiece(x, y, type) {
 };
 
 /**
+ * Drops all the current pieces and creates a new board.
+ * @method newBoard
+ */
+function newBoard() {
+
+	var children = DGE.Sprite.getByProperty('group', 'piece');
+	var numPieces = (PIECES_X * PIECES_Y);
+	var pieces = board.getPieces();
+
+	function ping() {
+
+		this.offset('opacity', -1);
+		this.offset('rotation', 1);
+
+		if (this.isOutOfBounds(true)) {
+
+			this.remove();
+
+			if (--numPieces == 0) {
+				sprites.board.set('opacity', 0);
+				board.reset();
+				resetBoard();
+				sprites.board.fade(100, DELAY_FADE);
+			}
+
+		}
+
+	};
+
+	for (var i = 0; i < children.length; i++) {
+
+		children[i]
+			.set('angle', 270)
+			.set('frame', 0)
+			.set('framesMax', FRAMES_FALLING)
+			.set('moving', true)
+			.on('ping', ping)
+			.start();
+
+	}
+
+};
+
+/**
  * Starts a new game.
  * @method newGame
  */
@@ -755,19 +810,6 @@ function newGame() {
 		selected : {}
 	};
 
-/*
-board.setPieces([
-	[1,2,4,5,6,1,0,4],
-	[4,6,4,5,5,1,3,1],
-	[5,3,2,1,5,3,3,4],
-	[4,5,6,5,2,5,5,1],
-	[2,2,1,6,5,3,4,4],
-	[5,1,4,4,5,2,3,1],
-	[1,2,5,3,6,0,4,4],
-	[3,6,1,1,4,4,6,1]
-]);
-*/
-
 	board.reset();
 	resetBoard();
 	sprites.cursor.hide();
@@ -778,49 +820,8 @@ board.setPieces([
 	sprites.modal.hide();
 	sprites.overlay.hide();
 
-};
-
-// TODO: get rid of this function
-function experiment() {
-
-/*
-	var matches = board.getPossibleMatches();
-
-	while (matches.length > 1) {
-		board.reset();
-
-
-		matches = board.getPossibleMatches();
-	};
-
-	DGE.log('matches: ', matches);
-	resetBoard();
-
-*/
-	var matches = board.getPossibleMatches();
-
-	for (var i = 0; i < matches.length; i++) {
-		setTimeout((function(i) {
-			return function() {
-				getPieceByPieceXY(matches[i].fromX, matches[i].fromY).setCSS('border', '1px solid red');
-				getPieceByPieceXY(matches[i].toX, matches[i].toY).setCSS('border', '1px solid white');
-				DGE.log('from ', matches[i].fromX, matches[i].fromY, ' to ', matches[i].toX, matches[i].toY);
-			};
-		})(i), 500 * i);
-	}
-
-	var pieces = board.getPieces();
-	var tmp = '';
-
-	for (var y = 0; y < PIECES_Y; y++) {
-		tmp += "[";
-		for (var x = 0; x < PIECES_X; x++) {
-			tmp += pieces[y][x] + ",";
-		}
-		tmp = tmp.substr(0, (tmp.length - 1)) + "],\n";
-	}
-	DGE.log(matches);
-	DGE.log(tmp);
+var matches = board.getPossibleMatches();
+DGE.log('number of possible matches: ', matches.length);
 
 };
 
