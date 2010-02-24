@@ -7,6 +7,8 @@
 // TODO: polish pieces moving to their icons
 // TODO: show total moves used at Game Over screen
 // TODO: instead of "Game Over", show a message like "You can do better" or "That's all you got?"
+// TODO: count the scores up on Game Over modal, don't just show them (polish!)
+// that are moving towards icons
 /*
 
 - down the road, OPTIMIZE! probably make a single asset/SpriteSheet
@@ -563,7 +565,8 @@ DGE.log('[NOTICE] pieces matched: ', matched);
 		piece
 			.anchorToStage()
 			.set('frame', 0)
-			.set('framesMax', FRAMES_MOVING);
+			.set('framesMax', FRAMES_MOVING)
+			.set('group', null);
 
 		switch (piece.get('type')) {
 			case 0: // Diamond.
@@ -811,6 +814,19 @@ function newGame() {
 	};
 
 	board.reset();
+
+// This is a single-move board.
+board.setPieces([
+[0,4,1,1,5,4,3,4],
+[3,5,5,2,6,0,4,5],
+[1,0,2,6,1,3,1,2],
+[4,4,0,5,5,0,6,5],
+[6,6,1,3,1,6,2,2],
+[6,2,4,3,5,4,2,0],
+[4,5,4,0,2,5,3,4],
+[3,3,6,0,1,4,6,3],
+]);
+
 	resetBoard();
 	sprites.cursor.hide();
 	sprites.bombsText.set('text', player.bombs);
@@ -918,9 +934,10 @@ init();
 sprites.version.on('click', function() {
 
 	var pieces = board.getPieces();
-	var tmp = '';
+	var tmp = "board.setPieces([\n";
 
 	for (var y = 0; y < PIECES_Y; y++) {
+		tmp += "[";
 		for (var x = 0; x < PIECES_X; x++) {
 			if (pieces[y][x] === false) {
 				tmp += '.,';
@@ -928,8 +945,10 @@ sprites.version.on('click', function() {
 				tmp += pieces[y][x] + ',';
 			}
 		}
-		tmp += "\n";
+		tmp = tmp.substr(0, tmp.length - 1) + "],\n";
 	}
+
+	tmp += "]);";
 
 	DGE.log('[Board Dump]');
 	DGE.log(tmp);
