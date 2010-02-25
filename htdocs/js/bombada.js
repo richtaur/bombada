@@ -4,10 +4,7 @@
 // TODO: show notices for awesome moves (4+ match) or cascades (2+ cascade)
 // TODO: how to play
 // TODO: settings: audio on/off, credits, reset high score
-
-// BUGS:
-// TODO: audit busy, I think when pieces are falling and the game is over (no moves),
-// that you can still click on shit
+// TODO: OPTIMIZE! make everything a single SpriteSheet (do this LAST)
 
 // POLISH:
 // TODO: polish pieces moving to their icons
@@ -15,28 +12,15 @@
 // TODO: Real Game Over menu
 
 // NICE TO HAVE:
-// TODO: konami code easter egg
-// TODO: show total moves used at Game Over screen
 // TODO: instead of "Game Over", show a message like "You can do better" or "That's all you got?"
 // TODO: high scores, maybe dates attached, and/or names attached? (most likely just the date)
-
-/*
-
-- down the road, OPTIMIZE! probably make a single asset/SpriteSheet
-
-things left before beta is done:
-- music/sound effects from josh
-- export to Android
-- and iPhone
-
-*/
 
 (function() {
 
 var board = exports.board;
 
 // Constants (kinda).
-var DEFAULT_NUM_MOVES = 1;
+var DEFAULT_NUM_MOVES = 10;
 var DELAY_ERROR = 100;
 var DELAY_FADE = 500;
 var DELAY_MATCH = 500;
@@ -277,7 +261,7 @@ function init() {
 
 		notice : new DGE.Text({
 			align : 'center',
-			width : 500,
+			width : DGE.stage.width,
 			height : 50,
 			z : Z_MODAL
 		}).hide(),
@@ -346,6 +330,13 @@ function init() {
 			height : 30,
 			y : 145
 		}),
+		movesUsed : new DGE.Text({
+			align : 'center',
+			parent : sprites.modal,
+			width : DGE.stage.width,
+			height : 30,
+			y : 170
+		}),
 		playAgain : new DGE.Text({
 			align : 'center',
 			cursor : true,
@@ -353,7 +344,7 @@ function init() {
 			width : DGE.stage.width,
 			text : 'Play Again?',
 			height : 30,
-			y : 200
+			y : 220
 		}).on('click', newGame)
 
 	};
@@ -398,8 +389,8 @@ function clickPiece(pieceX, pieceY) {
 
 		if (numActive) return;
 
-		busy = false;
 		player.movesTo--;
+		player.movesUsed++;
 
 		if (board.hasMatches()) {
 			execMatches();
@@ -538,17 +529,6 @@ DGE.log('numActive is DONE, lets fire some shit');
 		board.setPieces(setBoard());
 
 DGE.log('num possible matches', board.getPossibleMatches().length);
-
-/*
-		if (board.hasMatches()) {
-			execMatches();
-		} else if (!board.hasPossibleMatches()) {
-			newBoard();
-		} else {
-			if (player.moves == 0) gameOver();
-		}
-*/
-
 		if (board.hasMatches()) {
 			execMatches();
 		} else {
@@ -557,6 +537,8 @@ DGE.log('num possible matches', board.getPossibleMatches().length);
 				gameOver();
 			} else if (!board.hasPossibleMatches()) {
 				newBoard();
+			} else {
+				busy = false;
 			}
 
 		}
@@ -683,6 +665,7 @@ DGE.log('gameOver()');
 
 	sprites.gameOver.yourScore.set('text', ('Your Score: ' + DGE.formatNumber(player.money)));
 	sprites.gameOver.highScore.set('text', ('High Score: ' + DGE.formatNumber(highScore)));
+	sprites.gameOver.movesUsed.set('text', ('Total Moves: ' + DGE.formatNumber(player.movesUsed)));
 
 	sprites.modal.set('opacity', 0);
 	sprites.overlay.set('opacity', 0);
@@ -692,7 +675,7 @@ DGE.log('gameOver()');
 
 	sprites.modal.fade(100, DELAY_FADE);
 	sprites.overlay.fade(90, DELAY_FADE, function() {
-		
+		busy = false;
 	});
 
 };
@@ -786,6 +769,7 @@ function newBoard() {
 			this.remove();
 
 			if (--numPieces == 0) {
+				busy = false;
 				sprites.board.set('opacity', 0);
 				board.reset();
 				resetBoard();
@@ -824,6 +808,7 @@ function newGame() {
 		moneyTo : 0,
 		moves : DEFAULT_NUM_MOVES,
 		movesTo : DEFAULT_NUM_MOVES,
+		movesUsed : 0,
 		selected : {}
 	};
 
@@ -945,6 +930,28 @@ function showNotice(text, color, complete) {
 };
 
 init();
+
+// Easter Egg (Konami Code).
+DGE.Keyboard.code([38, 38, 40, 40, 37, 39, 37, 39, 66, 65], (function() {
+
+	var used;
+
+	return function() {
+
+		if (used) {
+			showNotice('ALREADY USED', '#EB0405');
+		} else if (player.moves == 1) {
+			player.movesTo++;
+			used = true;
+			showNotice('+1 MOVE', '#EB0405');
+		} else {
+			player.movesTo = 1;
+			showNotice('DENIED!', '#EB0405');
+		}
+
+	};
+	
+})());
 
 // Debugging
 sprites.version.on('click', function() {
