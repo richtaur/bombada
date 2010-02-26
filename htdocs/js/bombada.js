@@ -1,15 +1,11 @@
 // BUGS:
 // TODO: Game Over modal showing before score is incremented properly
-// TODO: may want to make the cursor smaller since clicking IT is what drops bombs. it's big so the bounding box is big
 
 // FEATURES:
-// TODO: double click to lay a bomb (with error message if out of bombs)
-// TODO: use portrait mode like a phone would be used?
-// TODO: show notices for awesome moves (4+ match) or cascades (2+ cascade)
-// TODO: how to play
+// TODO: show notices for awesome moves (4+ match)
+// TODO: how to play ...
 // TODO: settings: audio on/off, credits, reset high score
 // TODO: OPTIMIZE! make everything a single SpriteSheet (do this LAST)
-// TODO: bombsUsed
 
 // POLISH:
 // TODO: polish pieces moving to their icons
@@ -19,6 +15,7 @@
 // NICE TO HAVE:
 // TODO: instead of "Game Over", show a message like "You can do better" or "That's all you got?"
 // TODO: high scores, maybe dates attached, and/or names attached? (most likely just the date)
+// TODO: bombsUsed
 
 (function() {
 
@@ -29,7 +26,6 @@ var COLOR_ERROR = '#EB0405';
 var DEFAULT_NUM_MOVES = 10;
 var DELAY_ERROR = 100;
 var DELAY_FADE = 500;
-var DELAY_MATCH = 500;
 var DELAY_MONEY = 10;
 var DELAY_MOVE = 250;
 var DELAY_NOTICE = 750;
@@ -391,6 +387,7 @@ function clickPiece(pieceX, pieceY) {
 
 	// This wasn't a selection, it was a move!
 	busy = true;
+	player.cascade = 0;
 	var pieceCursor = getPieceByPieceXY(selectedPieceX, selectedPieceY);
 
 	queue.on('change:numActive', null);
@@ -481,6 +478,7 @@ function dropBomb() {
 	}
 
 	player.bombsTo--;
+	player.cascade = 0;
 
 	var pieceX = player.selected.pieceX;
 	var pieceY = player.selected.pieceY;
@@ -596,7 +594,9 @@ function dropPieces() {
 function execMatches(additionalMatches) {
 
 	player.cascade++;
-//DGE.log('cascade: ' + player.cascade);
+DGE.log('cascade: ' + player.cascade);
+
+	showCascades();
 
 	var matched = board.getPiecesMatched();
 	var pieces = board.getPieces();
@@ -857,7 +857,6 @@ function newGame() {
 	player = {
 		bombs : 0,
 		bombsTo : 0,
-		cascade : 0,
 		money : 0,
 		moneyTo : 0,
 		moves : DEFAULT_NUM_MOVES,
@@ -890,11 +889,6 @@ board.setPieces([
 
 	sprites.modal.hide();
 	sprites.overlay.hide();
-
-/*
-var matches = board.getPossibleMatches();
-DGE.log('number of possible matches: ', matches.length);
-*/
 
 };
 
@@ -982,6 +976,17 @@ DGE.log('pieces:', pieces);
 	return pieces;
 
 };
+
+function showCascades() {
+
+	if (player.cascade < 2) return;
+
+	showNotice(
+		DGE.sprintf('Cascade: %s', player.cascade),
+		COLOR_ERROR
+	); // TODO: color
+
+}
 
 /**
  * Shows the user a notice message.
