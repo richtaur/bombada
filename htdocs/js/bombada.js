@@ -1,3 +1,7 @@
+// BUGS:
+// TODO: Game Over modal showing before score is incremented properly
+// TODO: may want to make the cursor smaller since clicking IT is what drops bombs. it's big so the bounding box is big
+
 // FEATURES:
 // TODO: double click to lay a bomb (with error message if out of bombs)
 // TODO: use portrait mode like a phone would be used?
@@ -5,10 +9,11 @@
 // TODO: how to play
 // TODO: settings: audio on/off, credits, reset high score
 // TODO: OPTIMIZE! make everything a single SpriteSheet (do this LAST)
+// TODO: bombsUsed
 
 // POLISH:
 // TODO: polish pieces moving to their icons
-// TODO: count the scores up on Game Over modal, don't just show them (polish!)
+// TODO: increment the scores up on Game Over modal, don't just show them (polish!)
 // TODO: Real Game Over menu
 
 // NICE TO HAVE:
@@ -20,6 +25,7 @@
 var board = exports.board;
 
 // Constants (kinda).
+var COLOR_ERROR = '#EB0405';
 var DEFAULT_NUM_MOVES = 10;
 var DELAY_ERROR = 100;
 var DELAY_FADE = 500;
@@ -110,9 +116,11 @@ function init() {
 		invalidMove : new DGE.Audio({
 			file : 'audio/EnemyDeath.ogg'
 		}),
+/*
 		music : new DGE.Audio({
 			file : 'audio/sly.ogg'
 		}),
+*/
 		soundOn : new DGE.Audio({
 			file : 'audio/Powerup.ogg'
 		})
@@ -167,6 +175,8 @@ function init() {
 			x : 53,
 			y : 2,
 			z : Z_UI
+		}).on('click', function() {
+			dropBomb();
 		}).on('ping', function() {
 
 			var offset = 1.5;
@@ -393,12 +403,14 @@ function clickPiece(pieceX, pieceY) {
 		player.movesUsed++;
 
 		if (board.hasMatches()) {
+			player.selected = {};
+			sprites.cursor.hide();
 			execMatches();
 		} else {
 
 			audio.invalidMove.play();
 			board.swapPieces(pieceX, pieceY, selectedPieceX, selectedPieceY);
-			showNotice('Invalid move', '#EB0405', function() {
+			showNotice('Invalid move', COLOR_ERROR, function() {
 				busy = false;
 				if (player.moves == 0) gameOver();
 			});
@@ -458,6 +470,29 @@ function clickPieceByCoords(x, y) {
 };
 
 /**
+ * Attempts to drop a bomb where the cursor is.
+ * @method dropPieces
+ */
+function dropBomb() {
+
+	if (!player.bombs) {
+		showNotice('No bombs', COLOR_ERROR);
+		return;
+	}
+
+	player.bombsTo--;
+
+	var pieceX = player.selected.pieceX;
+	var pieceY = player.selected.pieceY;
+
+	execMatches([{
+		x : pieceX,
+		y : pieceY
+	}]);
+
+};
+
+/**
  * Applies gravity to pieces on the board and drops new ones from above.
  * @method dropPieces
  */
@@ -481,6 +516,7 @@ function dropPieces() {
 				stack[x]++;
 			} else if (holes) {
 				toDrop.push(getPieceByPieceXY(x, y).set('maxY', ((y + holes) * PIECE_SIZE)));
+//DGE.log('1. Latest toDrop: ', toDrop[toDrop.length - 1].get('type'));
 			}
 
 		}
@@ -489,7 +525,10 @@ function dropPieces() {
 	// Drop the stacked pieces from above the board.
 	for (var x = 0; x < PIECES_X; x++) {
 		for (var i = 0; i < stack[x]; i++) {
-			toDrop.push(makePiece(x, -(i + 1), getNewPiece()).set('maxY', ((stack[x] - i - 1) * PIECE_SIZE)));
+			toDrop.push(
+				makePiece(x, -(i + 1), getNewPiece()).set('maxY', ((stack[x] - i - 1) * PIECE_SIZE))
+			);
+//DGE.log('2. Latest toDrop: ', toDrop[toDrop.length - 1].get('type'));
 		}
 	}
 
@@ -505,9 +544,9 @@ function dropPieces() {
 				var maxY = this.get('maxY');
 
 				if (this.y >= maxY) {
-					queue.offset('numActive', -1);
-					this.set('y', maxY);
 					this.stop();
+					this.set('y', maxY);
+					queue.offset('numActive', -1);
 				}
 				
 			});
@@ -524,11 +563,9 @@ function dropPieces() {
 
 		if (numActive) return;
 
-DGE.log('numActive is DONE, lets fire some shit');
-
 		board.setPieces(setBoard());
 
-DGE.log('num possible matches', board.getPossibleMatches().length);
+//DGE.log('num possible matches', board.getPossibleMatches().length);
 		if (board.hasMatches()) {
 			execMatches();
 		} else {
@@ -553,17 +590,22 @@ DGE.log('num possible matches', board.getPossibleMatches().length);
 
 /**
  * Executes any matches on the board.
+ * @param {Array} additionalMatches (optional) An array of {x:x,y:y} matches to supplement what's actually matched.
  * @method execMatches
  */
-function execMatches() {
+function execMatches(additionalMatches) {
 
 	player.cascade++;
-DGE.log('cascade: ' + player.cascade);
+//DGE.log('cascade: ' + player.cascade);
 
 	var matched = board.getPiecesMatched();
 	var pieces = board.getPieces();
 
-DGE.log('[NOTICE] pieces matched: ', matched);
+	if (additionalMatches) {
+		matched = matched.concat(additionalMatches);
+	}
+
+//DGE.log('[NOTICE] pieces matched: ', matched);
 
 	queue.moving = [];
 
@@ -646,12 +688,14 @@ DGE.log('[NOTICE] pieces matched: ', matched);
 				break;
 		}
 
-		queue.moving.push(piece);
 		pieces[y][x] = false;
+		queue.moving.push(piece);
 
 	}
 
+//DGE.log('pieces:',pieces);
 	board.setPieces(pieces);
+//boardDump();
 	dropPieces();
 
 };
@@ -661,7 +705,18 @@ DGE.log('[NOTICE] pieces matched: ', matched);
  * @method gameOver
  */
 function gameOver() {
-DGE.log('gameOver()');
+
+	// wait is this right ...
+	var interval = new DGE.Interval({
+		interval : function() {
+		}
+	});
+
+	var values = {
+		money : 0,
+		highScore : 0,
+		movesUsed : 0
+	};
 
 	sprites.gameOver.yourScore.set('text', ('Your Score: ' + DGE.formatNumber(player.money)));
 	sprites.gameOver.highScore.set('text', ('High Score: ' + DGE.formatNumber(highScore)));
@@ -675,7 +730,9 @@ DGE.log('gameOver()');
 
 	sprites.modal.fade(100, DELAY_FADE);
 	sprites.overlay.fade(90, DELAY_FADE, function() {
+
 		busy = false;
+
 	});
 
 };
@@ -685,13 +742,7 @@ DGE.log('gameOver()');
  * @return {Number} A random piece type.
  */
 function getNewPiece() {
-
-	if (DGE.rand(1, 10) == 1) { // 10% chance for a diamond.
-		return 0;
-	} else {
-		return DGE.rand(1, (pieceTypes.length - 1));
-	}
-
+	return DGE.rand(pieceTypes);
 };
 
 /**
@@ -743,7 +794,7 @@ function makePiece(x, y, type) {
 		height : PIECE_SIZE,
 		x : (PIECE_SIZE * x),
 		y : (PIECE_SIZE * y)
-	}).on('click', function() {
+	}).on('mouseDown', function() {
 		clickPieceByCoords(this.x, this.y);
 	});
 
@@ -755,9 +806,12 @@ function makePiece(x, y, type) {
  */
 function newBoard() {
 
+	busy = false;
 	var children = DGE.Sprite.getByProperty('group', GROUP_PIECE);
 	var numPieces = (PIECES_X * PIECES_Y);
 	var pieces = board.getPieces();
+
+	showNotice('No moves', COLOR_ERROR);
 
 	function ping() {
 
@@ -814,8 +868,8 @@ function newGame() {
 
 	board.reset();
 
-/*
 // This is a single-move board.
+/*
 board.setPieces([
 [0,4,1,1,5,6,3,6],
 [3,5,5,2,6,0,6,5],
@@ -837,8 +891,10 @@ board.setPieces([
 	sprites.modal.hide();
 	sprites.overlay.hide();
 
+/*
 var matches = board.getPossibleMatches();
 DGE.log('number of possible matches: ', matches.length);
+*/
 
 };
 
@@ -873,6 +929,8 @@ function setBoard() {
 	var children = DGE.Sprite.getByProperty('group', GROUP_PIECE);
 	var pieces = [];
 
+var found = false;
+
 	for (var y = 0; y < PIECES_Y; y++) {
 
 		pieces[y] = [];
@@ -880,17 +938,46 @@ function setBoard() {
 		for (var x = 0; x < PIECES_X; x++) {
 
 			for (var i = 0; i < children.length; i++) {
-				if (children[i].get('group') == GROUP_PIECE) {
-					if (children[i].isAt((PIECE_SIZE * x), (PIECE_SIZE * y))) {
-						pieces[y][x] = children[i].get('type');
-						break;
-					}
+				if (children[i].isAt((PIECE_SIZE * x), (PIECE_SIZE * y))) {
+					pieces[y][x] = children[i].get('type');
+					break;
 				}
 			}
+
+if (pieces[y][x] === undefined) {
+
+	found = {
+		x : x,
+		y : y
+	};
+
+}
 
 		}
 
 	}
+
+	if (found) {
+
+		DGE.log('2. WHOA COULD NOT FIND at:', x, y);
+
+		for (var i = 0; i < children.length; i++) {
+			if (children[i].isAt((PIECE_SIZE * x), (PIECE_SIZE * y))) {
+				DGE.log('3.x. FOUND: ', children[i]);
+			} else {
+				DGE.log('3.x. not at index: ', i);
+			}
+		}
+
+		DGE.log('[done]');
+
+	}
+
+/*
+DGE.log('IN SET BOARD:');
+DGE.log('length', pieces[pieces.length - 1].length);
+DGE.log('pieces:', pieces);
+*/
 
 	return pieces;
 
@@ -939,14 +1026,14 @@ DGE.Keyboard.code([38, 38, 40, 40, 37, 39, 37, 39, 66, 65], (function() {
 	return function() {
 
 		if (used) {
-			showNotice('ALREADY USED', '#EB0405');
+			showNotice('ALREADY USED', COLOR_ERROR);
 		} else if (player.moves == 1) {
 			player.movesTo++;
 			used = true;
-			showNotice('+1 MOVE', '#EB0405');
+			showNotice('+1 MOVE', COLOR_ERROR);
 		} else {
 			player.movesTo = 1;
-			showNotice('DENIED!', '#EB0405');
+			showNotice('DENIED!', COLOR_ERROR);
 		}
 
 	};
@@ -954,7 +1041,9 @@ DGE.Keyboard.code([38, 38, 40, 40, 37, 39, 37, 39, 66, 65], (function() {
 })());
 
 // Debugging
-sprites.version.on('click', function() {
+sprites.version.on('click', boardDump);
+
+function boardDump() {
 
 	var pieces = board.getPieces();
 	var tmp = "board.setPieces([\n";
@@ -976,7 +1065,7 @@ sprites.version.on('click', function() {
 	DGE.log('[Board Dump]');
 	DGE.log(tmp);
 
-});
+};
 
 sprites.movesText.on('click', function() {
 	DGE.log('[getPossibleMatches]');
