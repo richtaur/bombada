@@ -2,19 +2,19 @@
 // TODO: Game Over modal showing before score is incremented properly
 
 // FEATURES:
-// TODO: show notices for awesome moves (4+ match)
+// TODO: show notices for awesome moves (4+ match) and give you an extra move
 // TODO: how to play ...
 // TODO: settings: audio on/off, credits, reset high score
-// TODO: OPTIMIZE! make everything a single SpriteSheet (do this LAST)
 
 // POLISH:
 // TODO: polish pieces moving to their icons
 // TODO: increment the scores up on Game Over modal, don't just show them (polish!)
 // TODO: Real Game Over menu
+// TODO: OPTIMIZE! make everything a single SpriteSheet (do this LAST)
 
 // NICE TO HAVE:
 // TODO: instead of "Game Over", show a message like "You can do better" or "That's all you got?"
-// TODO: high scores, maybe dates attached, and/or names attached? (most likely just the date)
+// TODO: save/show the date of the high score
 // TODO: bombsUsed
 
 (function() {
@@ -32,6 +32,8 @@ var DELAY_NOTICE = 750;
 var FRAMES_FALLING = 30;
 var FRAMES_MOVING = 15;
 var GROUP_PIECE = 'piece';
+var MODE_BOMB = 0;
+var MODE_MOVE = 1;
 var MONEY_INCREMENT = 1;
 var PIECE_SIZE = 36;
 var PIECES_X = 8;
@@ -45,6 +47,7 @@ var Z_PIECE = 2; // Above the background.
 
 var assets = {
 	background : 'gfx/480x320/bg.png',
+	backgroundBomb : 'gfx/480x320/bg_bomb.png',
 	cursor : 'gfx/480x320/cursor.png',
 	iconBomb : 'gfx/480x320/icon_bomb.png',
 	iconMoney : 'gfx/480x320/icon_money.png',
@@ -133,23 +136,28 @@ function init() {
 		}),
 
 		bombsIcon : new DGE.Sprite({
+			cursor : true,
 			image : assets.iconBomb,
 			width : 39,
 			height : 39,
 			x : 10,
 			y : 140
-		}),
+		}).on('click', toggleBombs),
 
 		bombsText : new DGE.Text({
 			color : '#FE6401',
+			cursor : true,
 			size : 36,
 			text : 0,
 			width : 110,
 			height : 42,
 			x : 60,
-			y : 140,
+			y : 138,
 			z : Z_UI
-		}).on('ping', function() {
+		}).on(
+			'click',
+			toggleBombs
+		).on('ping', function() {
 
 			if (player.bombs == player.bombsTo) return;
 
@@ -462,26 +470,24 @@ function clickPieceByCoords(x, y) {
 	var pieceX = (x / PIECE_SIZE);
 	var pieceY = (y / PIECE_SIZE);
 
-	clickPiece(pieceX, pieceY);
+	if (player.mode == MODE_BOMB) {
+		dropBomb(pieceX, pieceY);
+	} else {
+		clickPiece(pieceX, pieceY);
+	}
 
 };
 
 /**
  * Attempts to drop a bomb where the cursor is.
- * @method dropPieces
+ * @param {Number} pieceX The X coordinate of the piece to click.
+ * @param {Number} pieceY The Y coordinate of the piece to click.
+ * @method dropBomb
  */
-function dropBomb() {
-
-	if (!player.bombs) {
-		showNotice('No bombs', COLOR_ERROR);
-		return;
-	}
+function dropBomb(pieceX, pieceY) {
 
 	player.bombsTo--;
 	player.cascade = 0;
-
-	var pieceX = player.selected.pieceX;
-	var pieceY = player.selected.pieceY;
 
 	execMatches([{
 		x : pieceX,
@@ -567,6 +573,12 @@ function dropPieces() {
 		if (board.hasMatches()) {
 			execMatches();
 		} else {
+
+			// Turn is over ...
+			if (
+				(player.mode == MODE_BOMB)
+				&& (player.bombsTo == 0)
+			) toggleBombs();
 
 			if (player.moves == 0) {
 				gameOver();
@@ -706,7 +718,7 @@ DGE.log('cascade: ' + player.cascade);
  */
 function gameOver() {
 
-	// wait is this right ...
+	// TODO wait is this right ...
 	var interval = new DGE.Interval({
 		interval : function() {
 		}
@@ -857,6 +869,7 @@ function newGame() {
 	player = {
 		bombs : 0,
 		bombsTo : 0,
+		mode : MODE_MOVE,
 		money : 0,
 		moneyTo : 0,
 		moves : DEFAULT_NUM_MOVES,
@@ -1018,6 +1031,36 @@ function showNotice(text, color, complete) {
 				this.center();
 			}
 		});
+
+};
+
+/**
+ * TODO
+ */
+function toggleBombs() {
+
+	if (player.mode == MODE_BOMB) {
+
+		DGE.stage.set('image', assets.background);
+		player.mode = MODE_MOVE;
+
+		sprites.moves.set('opacity', 100);
+		sprites.movesText.set('opacity', 100);
+
+	} else {
+
+		if (!player.bombs) {
+			showNotice('No bombs', COLOR_ERROR);
+			return;
+		}
+
+		DGE.stage.set('image', assets.backgroundBomb);
+		player.mode = MODE_BOMB;
+
+		sprites.moves.set('opacity', 25);
+		sprites.movesText.set('opacity', 25);
+
+	}
 
 };
 
