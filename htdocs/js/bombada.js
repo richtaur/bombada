@@ -2,9 +2,12 @@
 // TODO: Game Over modal showing before score is incremented properly
 
 // FEATURES:
+// TODO: bomb explosion
+// TODO: font sprite sheet
 // TODO: show notices for awesome moves (4+ match) and give you an extra move
-// TODO: how to play ...
-// TODO: settings: audio on/off, credits, reset high score
+// TODO: settings: audio on/off, credits, reset high score ...
+
+// Hey Future Matt. This stuff is optional, you cunt:
 
 // POLISH:
 // TODO: polish pieces moving to their icons
@@ -16,13 +19,14 @@
 // TODO: instead of "Game Over", show a message like "You can do better" or "That's all you got?"
 // TODO: save/show the date of the high score
 // TODO: bombsUsed
+// TODO: show a hint after X seconds of no activity
 
 (function() {
 
 var board = exports.board;
 
 // Constants (kinda).
-var COLOR_ERROR = '#EB0405';
+var COLOR_ERROR = '#D60000';
 var DEFAULT_NUM_MOVES = 10;
 var DELAY_ERROR = 100;
 var DELAY_FADE = 500;
@@ -39,6 +43,7 @@ var PIECE_SIZE = 36;
 var PIECES_X = 8;
 var PIECES_Y = 8;
 var VELOCITY_PIECE = 15;
+var Z_HOW_TO = 7; // The how-to-play modal.
 var Z_MODAL = 6; // The game over message stuff.
 var Z_OVERLAY = 5; // Over everything but the stuff within the game over modal.
 var Z_UI = 4; // Always above the pieces.
@@ -49,6 +54,7 @@ var assets = {
 	background : 'gfx/480x320/bg.png',
 	backgroundBomb : 'gfx/480x320/bg_bomb.png',
 	cursor : 'gfx/480x320/cursor.png',
+	howToPlayArrow : 'gfx/480x320/htp_arrow.png',
 	iconBomb : 'gfx/480x320/icon_bomb.png',
 	iconMoney : 'gfx/480x320/icon_money.png',
 	soundOn : 'gfx/volume_on.png',
@@ -199,6 +205,32 @@ function init() {
 
 		}).start(),
 
+		howToPlay : new DGE.Text({
+			cursor : true,
+			opacity : 90,
+			size : 12,
+			text : DGE.formatBBCode(DGE.sprintf("[b]How to Play (1/6)[/b]<br><br>This is a match-3 game. You can %s on a piece, then an adjacent piece to match them.", DGE.platform.terms.click)),
+			width : 200,
+			height : 200,
+			z : Z_HOW_TO
+		})
+			.fill('#D60000')
+			.hide()
+			.setCSS('border-radius', '6px')
+			.setCSS('height', 'auto') // TODO: this is a hack, figure it out.
+			.setCSS('padding', '6px'),
+
+		howToPlayArrow : new DGE.Sprite({
+			image : assets.howToPlayArrow,
+			width : 12,
+			height : 12,
+			z : Z_HOW_TO
+		}).hide(),
+
+		howToPlayPointer : new DGE.Sprite({
+			z : Z_HOW_TO
+		}),
+
 		modal : new DGE.Sprite({
 			width : DGE.stage.width,
 			height : DGE.stage.height,
@@ -313,8 +345,8 @@ function init() {
 		version : new DGE.Text({
 			color : '#FFF',
 			size : 8,
-			text : 'v0.1',
-			x : 140,
+			text : 'v0.5',
+			x : 145,
 			y : 55
 		})
 
@@ -365,6 +397,10 @@ function init() {
 
 	//audio.music.play();
 	newGame();
+
+	if (!DGE.Data.get('shownHowToPlay')) {
+		showHowToPlay();
+	}
 
 };
 
@@ -705,9 +741,7 @@ DGE.log('cascade: ' + player.cascade);
 
 	}
 
-//DGE.log('pieces:',pieces);
 	board.setPieces(pieces);
-//boardDump();
 	dropPieces();
 
 };
@@ -894,6 +928,20 @@ board.setPieces([
 ]);
 */
 
+// This is a board with a cascade move available.
+/*
+board.setPieces([
+[3,4,4,0,1,2,6,5],
+[3,4,3,1,3,4,3,2],
+[1,0,6,4,4,1,6,1],
+[0,6,6,3,0,0,3,6],
+[5,5,0,0,3,2,3,5],
+[4,2,2,6,4,0,6,0],
+[4,0,0,6,1,4,4,3],
+[1,0,2,2,3,6,4,0],
+]);
+*/
+
 	resetBoard();
 	sprites.cursor.hide();
 	sprites.bombsText.set('text', player.bombs);
@@ -936,8 +984,6 @@ function setBoard() {
 	var children = DGE.Sprite.getByProperty('group', GROUP_PIECE);
 	var pieces = [];
 
-var found = false;
-
 	for (var y = 0; y < PIECES_Y; y++) {
 
 		pieces[y] = [];
@@ -951,6 +997,7 @@ var found = false;
 				}
 			}
 
+/*
 if (pieces[y][x] === undefined) {
 
 	found = {
@@ -959,11 +1006,13 @@ if (pieces[y][x] === undefined) {
 	};
 
 }
+*/
 
 		}
 
 	}
 
+/*
 	if (found) {
 
 		DGE.log('2. WHOA COULD NOT FIND at:', x, y);
@@ -979,27 +1028,114 @@ if (pieces[y][x] === undefined) {
 		DGE.log('[done]');
 
 	}
-
-/*
-DGE.log('IN SET BOARD:');
-DGE.log('length', pieces[pieces.length - 1].length);
-DGE.log('pieces:', pieces);
 */
 
 	return pieces;
 
 };
 
+/**
+ * Displays the number of cascades just accomplished.
+ * @method showCascades
+ */
 function showCascades() {
 
 	if (player.cascade < 2) return;
 
 	showNotice(
-		DGE.sprintf('Cascade: %s', player.cascade),
-		COLOR_ERROR
-	); // TODO: color
+		DGE.sprintf('\u00D7%s', player.cascade),
+		'#FFF'
+	);
 
 }
+
+/**
+ * Shows the How to Play modal.
+ */
+function showHowToPlay() {
+// TODO: OH FFS, need to ucfirst "Click"
+
+	var tipIndex = 0;
+	var tips = [
+		{
+			message : "This is a match-3 game. You can click on a piece, then an adjacent piece to match them.",
+			x : 214,
+			y : 90
+		}, {
+			arrow : 45,
+			message : "This is the number of moves you have left. You can collect Clocks to get more moves.",
+			x : 140,
+			y : 200
+		}, {
+			message : "The object of the game is to collect money. Collect Diamonds ($25), Dollars ($10), and Coins ($5) to beat your high score!",
+			x : 214,
+			y : 90
+		}, {
+			arrow : 60,
+			message : "Once you collect bombs, click the bomb icon to enable them, then click on the board to drop a bomb. Click the bomb icon again to match pieces like normal.",
+			x : 100,
+			y : 95
+		}, {
+			message : "You'll want to use bombs on Crates and Barrels since you get no benefits from matching them.",
+			x : 214,
+			y : 90
+		}, {
+			message : "If you match 4-of-a-kind or more, you get an extra move. Now go blow stuff up and have fun!",
+			x : 214,
+			y : 90
+		}
+	];
+
+	function showNext() {
+
+		if (tipIndex == tips.length) {
+
+			DGE.Data.set('shownHowToPlay', true);
+
+			sprites.howToPlay.fade(0, 500, function() {
+				this.hide();
+			});
+
+			return;
+
+		}
+
+		var suffix = DGE.sprintf("<br><br>Click to %s.", ((tipIndex == (tips.length - 1)) ? 'finish' : 'continue'));
+		var message = DGE.sprintf('[b]How to Play (%s/%s)[/b]<br>', (tipIndex + 1), tips.length);
+
+		message += (tips[tipIndex].message + suffix)
+			.replace(/Click/g, DGE.platform.terms.click.capitalize())
+			.replace(/click/g, DGE.platform.terms.click);
+
+		sprites.howToPlay
+			.plot(tips[tipIndex].x, tips[tipIndex].y)
+			.set('text', DGE.formatBBCode(message));
+
+		if (tips[tipIndex].arrow) {
+			sprites.howToPlayArrow.plot(
+				(sprites.howToPlay.x - sprites.howToPlayArrow.width),
+				(sprites.howToPlay.y + tips[tipIndex].arrow)
+			)
+			sprites.howToPlayArrow.show();
+		} else {
+			sprites.howToPlayArrow.hide();
+		}
+
+		tipIndex++;
+
+	};
+
+	if (!sprites.howToPlay.get('visible')) {
+		sprites.howToPlay
+			.set('opacity', 0)
+			.show()
+			.fade(100, 500);
+	}
+
+	showNext();
+	sprites.howToPlay.on('click', showNext);
+
+};
 
 /**
  * Shows the user a notice message.
@@ -1035,9 +1171,12 @@ function showNotice(text, color, complete) {
 };
 
 /**
- * TODO
+ * Attempts to toggle between regular moves and dropping bombs.
+ * @method toggleBombs
  */
 function toggleBombs() {
+
+	sprites.cursor.hide();
 
 	if (player.mode == MODE_BOMB) {
 
@@ -1074,14 +1213,14 @@ DGE.Keyboard.code([38, 38, 40, 40, 37, 39, 37, 39, 66, 65], (function() {
 	return function() {
 
 		if (used) {
-			showNotice('ALREADY USED', COLOR_ERROR);
+			showNotice('Already used', COLOR_ERROR);
 		} else if (player.moves == 1) {
 			player.movesTo++;
 			used = true;
-			showNotice('+1 MOVE', COLOR_ERROR);
+			showNotice('+1 move', COLOR_ERROR);
 		} else {
 			player.movesTo = 1;
-			showNotice('DENIED!', COLOR_ERROR);
+			showNotice('Denied!', COLOR_ERROR);
 		}
 
 	};
