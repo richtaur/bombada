@@ -1,22 +1,39 @@
 // BUGS:
 // TODO: Game Over modal showing before score is incremented properly
+// TODO: game is NOT over if you're out of moves but still have bombs
 
 // FEATURES:
-// TODO: bomb explosion
 // TODO: font sprite sheet
+// TODO: bomb explosion
 // TODO: show notices for awesome moves (4+ match) and give you an extra move
 // TODO: settings: audio on/off, credits, reset high score ...
 
-// Hey Future Matt. This stuff is optional, you cunt:
+// Hey Future Matt: DO THE STUFF ABOVE HERE FIRST!
 
 // POLISH:
+// TODO: redo showNotice, maybe don't make it increase in size, kinda sloppy-looking
 // TODO: polish pieces moving to their icons
-// TODO: increment the scores up on Game Over modal, don't just show them (polish!)
-// TODO: Real Game Over menu
+// TODO: increment the scores up on Game Over modal, don't just show them (improve game over menu)
+// TODO: let the player know when the moves are almost up (change colors or vibrate), like this:
+
+/*
+var boardX = sprites.movesText.x;
+var boardY = sprites.movesText.y;
+
+sprites.movesText.on('ping', function() {
+	var bounce = 3;
+	if (DGE.rand(0, 1) == 0) {
+		this.plot(boardX + DGE.rand(-bounce, bounce), boardY + DGE.rand(-bounce, bounce));
+	} else {
+		this.plot(boardX, boardY);
+	}
+}).start();
+*/
+
 // TODO: OPTIMIZE! make everything a single SpriteSheet (do this LAST)
 
 // NICE TO HAVE:
-// TODO: instead of "Game Over", show a message like "You can do better" or "That's all you got?"
+// TODO: instead of "Game Over", show a message like "You can do better" or "That's all you got?" or "Whoa, nicely done!"
 // TODO: save/show the date of the high score
 // TODO: bombsUsed
 // TODO: show a hint after X seconds of no activity
@@ -185,8 +202,6 @@ function init() {
 			x : 53,
 			y : 2,
 			z : Z_UI
-		}).on('click', function() {
-			dropBomb();
 		}).on('ping', function() {
 
 			var offset = 1.5;
@@ -1055,6 +1070,9 @@ function showCascades() {
 function showHowToPlay() {
 // TODO: OH FFS, need to ucfirst "Click"
 
+	busy = true;
+
+// TODO: add icons
 	var tipIndex = 0;
 	var tips = [
 		{
@@ -1067,12 +1085,12 @@ function showHowToPlay() {
 			x : 140,
 			y : 200
 		}, {
-			message : "The object of the game is to collect money. Collect Diamonds ($25), Dollars ($10), and Coins ($5) to beat your high score!",
+			message : "The object of the game is to collect money. Collect Diamonds ($25), Dollars ($10), and Coins ($5) to raise your score!",
 			x : 214,
 			y : 90
 		}, {
 			arrow : 60,
-			message : "Once you collect bombs, click the bomb icon to enable them, then click on the board to drop a bomb. Click the bomb icon again to match pieces like normal.",
+			message : "Once you collect bombs, click the bomb icon to enter Bomb Mode, then click on the board to drop a bomb. Click the bomb icon again to exit Bomb Mode.",
 			x : 100,
 			y : 95
 		}, {
@@ -1093,6 +1111,7 @@ function showHowToPlay() {
 			DGE.Data.set('shownHowToPlay', true);
 
 			sprites.howToPlay.fade(0, 500, function() {
+				busy = false;
 				this.hide();
 			});
 
