@@ -1,38 +1,22 @@
 // BUGS:
-// TODO: redo xyzTo to instead be .bombs, .moves and then bombsDisplay, movesDisplay
-// ^ NOTE: this introduced something new, that when you move, your move is taken away immediately,
+// TODO: when you move, your move is taken away immediately,
 // this shouldn't be, it should take the move after your move is finished with everything.
-// TODO: Game Over modal showing before score is incremented properly
-// TODO: game is NOT over if you're out of moves but still have bombs
+// this stuff is going to need to be redone anyway once the match-4+ stuff is ready ... sigh ...
 
 // FEATURES:
 // TODO: font sprite sheet
-// TODO: bomb explosion
+// TODO: bomb explosion (sprite animation)
 // TODO: show notices for awesome moves (4+ match) and give you an extra move
 // TODO: settings: audio on/off, credits, reset high score ...
 
-// Hey Future Matt: DO THE STUFF ABOVE HERE FIRST!
+// ==========================================================================================
+// STUFF ABOVE THIS LINE ARE MUST HAVES
+// ==========================================================================================
 
 // POLISH:
 // TODO: redo showNotice, maybe don't make it increase in size, kinda sloppy-looking
 // TODO: polish pieces moving to their icons
 // TODO: increment the scores up on Game Over modal, don't just show them (improve game over menu)
-// TODO: let the player know when the moves are almost up (change colors or vibrate), like this:
-
-/*
-var boardX = sprites.movesText.x;
-var boardY = sprites.movesText.y;
-
-sprites.movesText.on('ping', function() {
-	var bounce = 3;
-	if (DGE.rand(0, 1) == 0) {
-		this.plot(boardX + DGE.rand(-bounce, bounce), boardY + DGE.rand(-bounce, bounce));
-	} else {
-		this.plot(boardX, boardY);
-	}
-}).start();
-*/
-
 // TODO: OPTIMIZE! make everything a single SpriteSheet (do this LAST)
 
 // NICE TO HAVE:
@@ -47,7 +31,7 @@ var board = exports.board;
 
 // Constants (kinda).
 var COLOR_ERROR = '#D60000';
-var DEFAULT_NUM_MOVES = 2;
+var DEFAULT_NUM_MOVES = 4;
 var DELAY_ERROR = 100;
 var DELAY_FADE = 500;
 var DELAY_MONEY = 10;
@@ -311,6 +295,25 @@ function init() {
 			z : Z_UI
 		}).on('ping', function() {
 
+			var bounce = 0;
+			var resetX = this.get('resetX');
+			var resetY = this.get('resetY');
+
+			// TODO: set the color too, red if low moves
+			if (player.numMoves <= 3) {
+
+				bounce = (5 - player.numMoves);
+
+				if (DGE.rand(0, 1) == 0) {
+					this.plot(resetX + DGE.rand(-bounce, bounce), resetY + DGE.rand(-bounce, bounce));
+				} else {
+					this.plot(resetX, resetY);
+				}
+
+			} else {
+				this.plot(resetX, resetY);
+			}
+
 			if (player.numMovesDisplay == player.numMoves) return;
 
 			if (player.numMovesDisplay < player.numMoves) {
@@ -321,7 +324,21 @@ function init() {
 
 			this.set('text', DGE.formatNumber(player.numMovesDisplay));
 
-		}).start(),
+/*
+sprites.movesText.on('ping', function() {
+	var bounce = 3;
+	if (DGE.rand(0, 1) == 0) {
+		this.plot(boardX + DGE.rand(-bounce, bounce), boardY + DGE.rand(-bounce, bounce));
+	} else {
+		this.plot(boardX, boardY);
+	}
+}).start();
+*/
+
+		})
+			.set('resetX', 0)
+			.set('resetY', 220)
+			.start(),
 
 		notice : new DGE.Text({
 			align : 'center',
