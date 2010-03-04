@@ -1,4 +1,7 @@
 // BUGS:
+// TODO: redo xyzTo to instead be .bombs, .moves and then bombsDisplay, movesDisplay
+// ^ NOTE: this introduced something new, that when you move, your move is taken away immediately,
+// this shouldn't be, it should take the move after your move is finished with everything.
 // TODO: Game Over modal showing before score is incremented properly
 // TODO: game is NOT over if you're out of moves but still have bombs
 
@@ -44,7 +47,7 @@ var board = exports.board;
 
 // Constants (kinda).
 var COLOR_ERROR = '#D60000';
-var DEFAULT_NUM_MOVES = 10;
+var DEFAULT_NUM_MOVES = 2;
 var DELAY_ERROR = 100;
 var DELAY_FADE = 500;
 var DELAY_MONEY = 10;
@@ -165,7 +168,7 @@ function init() {
 			height : 39,
 			x : 10,
 			y : 140
-		}).on('click', toggleBombs),
+		}).on('click', toggleMode),
 
 		bombsText : new DGE.Text({
 			color : '#FE6401',
@@ -179,18 +182,18 @@ function init() {
 			z : Z_UI
 		}).on(
 			'click',
-			toggleBombs
+			toggleMode
 		).on('ping', function() {
 
-			if (player.bombs == player.bombsTo) return;
+			if (player.numBombsDisplay == player.numBombs) return;
 
-			if (player.bombs < player.bombsTo) {
-				player.bombs++;
-			} else if (player.bombs > player.bombsTo) {
-				player.bombs--;
+			if (player.numBombsDisplay < player.numBombs) {
+				player.numBombsDisplay++;
+			} else if (player.numBombsDisplay > player.numBombs) {
+				player.numBombsDisplay--;
 			}
 
-			this.set('text', DGE.formatNumber(player.bombs));
+			this.set('text', DGE.formatNumber(player.numBombsDisplay));
 
 		}).start(),
 
@@ -272,21 +275,21 @@ function init() {
 			z : Z_UI
 		}).on('ping', function() {
 
-			if (player.money == player.moneyTo) return;
+			if (player.moneyDisplay == player.money) return;
 
-			if (player.money < player.moneyTo) {
-				player.money += MONEY_INCREMENT;
+			if (player.moneyDisplay < player.money) {
+				player.moneyDisplay += MONEY_INCREMENT;
 			}
 
-			if (player.money > player.moneyTo) {
-				player.money = player.moneyTo;
+			if (player.moneyDisplay > player.money) {
+				player.moneyDisplay = player.money;
 			}
 
-			this.set('text', DGE.formatNumber(player.money));
+			this.set('text', DGE.formatNumber(player.moneyDisplay));
 
 		}).start(),
 
-		moves : new DGE.Text({
+		movesLeft : new DGE.Text({
 			align : 'center',
 			color : '#A3A4AA',
 			size : 14,
@@ -308,15 +311,15 @@ function init() {
 			z : Z_UI
 		}).on('ping', function() {
 
-			if (player.moves == player.movesTo) return;
+			if (player.numMovesDisplay == player.numMoves) return;
 
-			if (player.moves < player.movesTo) {
-				player.moves++;
-			} else if (player.moves > player.movesTo) {
-				player.moves--;
+			if (player.numMovesDisplay < player.numMoves) {
+				player.numMovesDisplay++;
+			} else if (player.numMovesDisplay > player.numMoves) {
+				player.numMovesDisplay--;
 			}
 
-			this.set('text', DGE.formatNumber(player.moves));
+			this.set('text', DGE.formatNumber(player.numMovesDisplay));
 
 		}).start(),
 
@@ -420,6 +423,29 @@ function init() {
 };
 
 /**
+ * Checks if the game is over (also puts you in bomb mode if you must be).
+ * @return {Boolean} true if the game is over, false if GAME ON!
+ * @method checkGameOver
+ */
+function checkGameOver() {
+
+	if (player.numMoves) {
+		return false;
+	} else if (player.numBombs) {
+		
+		if (player.mode != MODE_BOMB) {
+			toggleMode();
+		}
+
+		return false;
+
+	}
+
+	return true;
+
+};
+
+/**
  * Initiates a click on a piece.
  * @param {Number} pieceX The X coordinate of the piece to click.
  * @param {Number} pieceY The Y coordinate of the piece to click.
@@ -455,8 +481,8 @@ function clickPiece(pieceX, pieceY) {
 
 		if (numActive) return;
 
-		player.movesTo--;
 		player.movesUsed++;
+		player.numMoves--;
 
 		if (board.hasMatches()) {
 			player.selected = {};
@@ -468,7 +494,7 @@ function clickPiece(pieceX, pieceY) {
 			board.swapPieces(pieceX, pieceY, selectedPieceX, selectedPieceY);
 			showNotice('Invalid move', COLOR_ERROR, function() {
 				busy = false;
-				if (player.moves == 0) gameOver();
+				if (checkGameOver()) gameOver();
 			});
 
 			var cursorToX = pieceClicked.x;
@@ -537,8 +563,8 @@ function clickPieceByCoords(x, y) {
  */
 function dropBomb(pieceX, pieceY) {
 
-	player.bombsTo--;
 	player.cascade = 0;
+	player.numBombs--;
 
 	execMatches([{
 		x : pieceX,
@@ -620,7 +646,6 @@ function dropPieces() {
 
 		board.setPieces(setBoard());
 
-//DGE.log('num possible matches', board.getPossibleMatches().length);
 		if (board.hasMatches()) {
 			execMatches();
 		} else {
@@ -628,10 +653,11 @@ function dropPieces() {
 			// Turn is over ...
 			if (
 				(player.mode == MODE_BOMB)
-				&& (player.bombsTo == 0)
-			) toggleBombs();
+				&& (player.numMoves)
+				&& (player.numBombs == 0)
+			) toggleMode();
 
-			if (player.moves == 0) {
+			if (checkGameOver()) {
 				gameOver();
 			} else if (!board.hasPossibleMatches()) {
 				newBoard();
@@ -692,7 +718,7 @@ DGE.log('cascade: ' + player.cascade);
 				piece.on('ping', function() {
 
 					if (this.isTouching(sprites.moneyIcon)) {
-						player.moneyTo += pieceWorth[this.get('type')];
+						player.money += pieceWorth[this.get('type')];
 						queue.offset('numActive', -1);
 						this.remove();
 					}
@@ -704,7 +730,7 @@ DGE.log('cascade: ' + player.cascade);
 				piece.on('ping', function() {
 
 					if (this.isTouching(sprites.bombsIcon)) {
-						player.bombsTo++;
+						player.numBombs++;
 						queue.offset('numActive', -1);
 						this.remove();
 					}
@@ -721,7 +747,7 @@ DGE.log('cascade: ' + player.cascade);
 
 					if (this.isTouching(sprites.movesText)) {
 
-						player.movesTo++;
+						player.numMoves++;
 						queue.offset('numActive', -1);
 						this.set('active', false);
 
@@ -916,18 +942,18 @@ function newBoard() {
 function newGame() {
 
 	player = {
-		bombs : 0,
-		bombsTo : 0,
-		mode : MODE_MOVE,
 		money : 0,
-		moneyTo : 0,
-		moves : DEFAULT_NUM_MOVES,
-		movesTo : DEFAULT_NUM_MOVES,
+		moneyDisplay : 0,
 		movesUsed : 0,
+		numBombs : 0,
+		numBombsDisplay : 0,
+		numMoves : DEFAULT_NUM_MOVES,
+		numMovesDisplay : DEFAULT_NUM_MOVES,
 		selected : {}
 	};
 
 	board.reset();
+	showMode();
 
 // This is a single-move board.
 /*
@@ -959,9 +985,9 @@ board.setPieces([
 
 	resetBoard();
 	sprites.cursor.hide();
-	sprites.bombsText.set('text', player.bombs);
 	sprites.moneyText.set('text', player.money);
-	sprites.movesText.set('text', player.moves);
+	sprites.bombsText.set('text', player.numBombs);
+	sprites.movesText.set('text', player.numMoves);
 
 	sprites.modal.hide();
 	sprites.overlay.hide();
@@ -1157,6 +1183,24 @@ function showHowToPlay() {
 };
 
 /**
+ * Shows the current play mode.
+ * @method showMode
+ */
+function showMode() {
+
+	if (player.mode == MODE_BOMB) {
+		DGE.stage.set('image', assets.backgroundBomb);
+		sprites.movesLeft.set('opacity', 25);
+		sprites.movesText.set('opacity', 25);
+	} else {
+		DGE.stage.set('image', assets.background);
+		sprites.movesLeft.set('opacity', 100);
+		sprites.movesText.set('opacity', 100);
+	}
+
+};
+
+/**
  * Shows the user a notice message.
  * @param {String} text The text to display.
  * @param {String} color The color of the text.
@@ -1191,32 +1235,29 @@ function showNotice(text, color, complete) {
 
 /**
  * Attempts to toggle between regular moves and dropping bombs.
- * @method toggleBombs
+ * @method toggleMode
  */
-function toggleBombs() {
+function toggleMode() {
 
 	sprites.cursor.hide();
 
 	if (player.mode == MODE_BOMB) {
 
-		DGE.stage.set('image', assets.background);
-		player.mode = MODE_MOVE;
-
-		sprites.moves.set('opacity', 100);
-		sprites.movesText.set('opacity', 100);
+		if (!player.numMoves) {
+			showNotice('No moves left', COLOR_ERROR);
+		} else {
+			player.mode = MODE_MOVE;
+			showMode();
+		}
 
 	} else {
 
-		if (!player.bombs) {
+		if (!player.numBombs) {
 			showNotice('No bombs', COLOR_ERROR);
-			return;
+		} else {
+			player.mode = MODE_BOMB;
+			showMode();
 		}
-
-		DGE.stage.set('image', assets.backgroundBomb);
-		player.mode = MODE_BOMB;
-
-		sprites.moves.set('opacity', 25);
-		sprites.movesText.set('opacity', 25);
 
 	}
 
@@ -1233,12 +1274,12 @@ DGE.Keyboard.code([38, 38, 40, 40, 37, 39, 37, 39, 66, 65], (function() {
 
 		if (used) {
 			showNotice('Already used', COLOR_ERROR);
-		} else if (player.moves == 1) {
-			player.movesTo++;
+		} else if (player.numMoves == 1) {
+			player.numMoves++;
 			used = true;
 			showNotice('+1 move', COLOR_ERROR);
 		} else {
-			player.movesTo = 1;
+			player.numMoves = 1;
 			showNotice('Denied!', COLOR_ERROR);
 		}
 
