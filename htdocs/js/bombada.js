@@ -1,4 +1,5 @@
 // BUGS:
+// TODO: andrea keeps finding bugs.
 // TODO: when you move, your move is taken away immediately,
 // this shouldn't be, it should take the move after your move is finished with everything.
 // this stuff is going to need to be redone anyway once the match-4+ stuff is ready ... sigh ...
@@ -66,6 +67,7 @@ var assets = {
 };
 var audio;
 var busy;
+var explosionSheet;
 var highScore;
 var pieceTypes = [
 /*
@@ -134,6 +136,16 @@ function init() {
 			file : 'audio/Powerup.ogg'
 		})
 	};
+
+	explosionSheet = new DGE.Sprite.Sheet({
+		image : 'gfx/480x320/explosions.png',
+		spriteWidth : 48,
+		spriteHeight : 48,
+		width : 240,
+		height : 48,
+		x : 24,
+		y : 56
+	});
 
 	sprites = {
 
@@ -206,6 +218,24 @@ function init() {
 			}
 
 		}).start(),
+
+		explosion : new DGE.Sprite({
+			delay : 100,
+			sheet : explosionSheet,
+			sheetX : 0,
+			width : 48,
+			height : 48,
+			x : 100,
+			y : 100,
+			z : Z_UI
+		}).hide().on('ping', function() {
+
+			var sheetX = this.get('sheetX');
+			if (sheetX > 4) this.hide().stop();
+
+			this.offset('sheetX', 1);
+			
+		}),
 
 		howToPlay : new DGE.Text({
 			cursor : true,
@@ -299,10 +329,10 @@ function init() {
 			var resetX = this.get('resetX');
 			var resetY = this.get('resetY');
 
-			// TODO: set the color too, red if low moves
 			if (player.numMoves <= 3) {
 
 				bounce = (5 - player.numMoves);
+				this.set('color', 'rgb(214, n, n)'.replace(/n/g, (player.numMoves * 50 - 50)));
 
 				if (DGE.rand(0, 1) == 0) {
 					this.plot(resetX + DGE.rand(-bounce, bounce), resetY + DGE.rand(-bounce, bounce));
@@ -312,6 +342,7 @@ function init() {
 
 			} else {
 				this.plot(resetX, resetY);
+				this.set('color', '#FFF');
 			}
 
 			if (player.numMovesDisplay == player.numMoves) return;
@@ -323,17 +354,6 @@ function init() {
 			}
 
 			this.set('text', DGE.formatNumber(player.numMovesDisplay));
-
-/*
-sprites.movesText.on('ping', function() {
-	var bounce = 3;
-	if (DGE.rand(0, 1) == 0) {
-		this.plot(boardX + DGE.rand(-bounce, bounce), boardY + DGE.rand(-bounce, bounce));
-	} else {
-		this.plot(boardX, boardY);
-	}
-}).start();
-*/
 
 		})
 			.set('resetX', 0)
@@ -582,6 +602,12 @@ function dropBomb(pieceX, pieceY) {
 
 	player.cascade = 0;
 	player.numBombs--;
+
+	sprites.explosion
+		.centerOn(getPieceByPieceXY(pieceX, pieceY))
+		.set('sheetX', 0)
+		.show()
+		.start();
 
 	execMatches([{
 		x : pieceX,
