@@ -3,12 +3,14 @@
 // TODO: when you move, your move is taken away immediately,
 // this shouldn't be, it should take the move after your move is finished with everything.
 // this stuff is going to need to be redone anyway once the match-4+ stuff is ready ... sigh ...
+// TODO: make bombs give you nothing from blowing stuff up. (MAJOR)
 
 // FEATURES:
-// TODO: font sprite sheet
-// TODO: bomb explosion (sprite animation)
-// TODO: show notices for awesome moves (4+ match) and give you an extra move
+// TODO: add icons to How to Play
+// TODO: font sprite sheet (MAJOR)
+// TODO: show notices for awesome moves (4+ match) and give you an extra move (MAJOR)
 // TODO: settings: audio on/off, credits, reset high score ...
+// TODO: bomb shouldn't have a glow until you have bombs (also redo the ugly glow)
 
 // ==========================================================================================
 // STUFF ABOVE THIS LINE ARE MUST HAVES
@@ -32,7 +34,7 @@ var board = exports.board;
 
 // Constants (kinda).
 var COLOR_ERROR = '#D60000';
-var DEFAULT_NUM_MOVES = 4;
+var DEFAULT_NUM_MOVES = 10;
 var DELAY_ERROR = 100;
 var DELAY_FADE = 500;
 var DELAY_MONEY = 10;
@@ -70,15 +72,6 @@ var busy;
 var explosionSheet;
 var highScore;
 var pieceTypes = [
-/*
-	'gfx/bombadaTiles/1.png',
-	'gfx/bombadaTiles/2.png',
-	'gfx/bombadaTiles/3.png',
-	'gfx/bombadaTiles/4.png',
-	'gfx/bombadaTiles/5.png',
-	'gfx/bombadaTiles/6.png',
-	'gfx/bombadaTiles/7.png'
-*/
 	'gfx/480x320/piece_diamond.png',
 	'gfx/480x320/piece_money.png',
 	'gfx/480x320/piece_coin.png',
@@ -127,11 +120,9 @@ function init() {
 		invalidMove : new DGE.Audio({
 			file : 'audio/EnemyDeath.ogg'
 		}),
-/*
 		music : new DGE.Audio({
 			file : 'audio/sly.ogg'
 		}),
-*/
 		soundOn : new DGE.Audio({
 			file : 'audio/Powerup.ogg'
 		})
@@ -176,10 +167,7 @@ function init() {
 			x : 60,
 			y : 138,
 			z : Z_UI
-		}).on(
-			'click',
-			toggleMode
-		).on('ping', function() {
+		}).on('click', toggleMode).on('ping', function() {
 
 			if (player.numBombsDisplay == player.numBombs) return;
 
@@ -246,7 +234,7 @@ function init() {
 			height : 200,
 			z : Z_HOW_TO
 		})
-			.fill('#D60000')
+			.fill(COLOR_ERROR)
 			.hide()
 			.setCSS('border-radius', '6px')
 			.setCSS('height', 'auto') // TODO: this is a hack, figure it out.
@@ -373,7 +361,7 @@ function init() {
 			z : Z_OVERLAY
 		}).fill('#000').hide(),
 
-/*
+/* TODO
 		speaker : new DGE.Sprite({
 			cursor : true,
 			image : assets.soundOn,
@@ -600,11 +588,13 @@ function clickPieceByCoords(x, y) {
  */
 function dropBomb(pieceX, pieceY) {
 
+	var piece = getPieceByPieceXY(pieceX, pieceY);
+
 	player.cascade = 0;
 	player.numBombs--;
 
 	sprites.explosion
-		.centerOn(getPieceByPieceXY(pieceX, pieceY))
+		.centerOn(piece)
 		.set('sheetX', 0)
 		.show()
 		.start();
@@ -635,12 +625,13 @@ function dropPieces() {
 
 		for (var y = (PIECES_Y - 1); y >= 0; y--) {
 
-			if (pieces[y][x] === false) {
+			if (pieces[y][x] === true) {
 				holes++;
 				stack[x]++;
 			} else if (holes) {
-				toDrop.push(getPieceByPieceXY(x, y).set('maxY', ((y + holes) * PIECE_SIZE)));
-//DGE.log('1. Latest toDrop: ', toDrop[toDrop.length - 1].get('type'));
+				toDrop.push(
+					getPieceByPieceXY(x, y).set('maxY', ((y + holes) * PIECE_SIZE))
+				);
 			}
 
 		}
@@ -652,7 +643,6 @@ function dropPieces() {
 			toDrop.push(
 				makePiece(x, -(i + 1), getNewPiece()).set('maxY', ((stack[x] - i - 1) * PIECE_SIZE))
 			);
-//DGE.log('2. Latest toDrop: ', toDrop[toDrop.length - 1].get('type'));
 		}
 	}
 
@@ -737,8 +727,6 @@ DGE.log('cascade: ' + player.cascade);
 		matched = matched.concat(additionalMatches);
 	}
 
-//DGE.log('[NOTICE] pieces matched: ', matched);
-
 	queue.moving = [];
 
 	for (var i = 0; i < matched.length; i++) {
@@ -820,7 +808,7 @@ DGE.log('cascade: ' + player.cascade);
 				break;
 		}
 
-		pieces[y][x] = false;
+		pieces[y][x] = true;
 		queue.moving.push(piece);
 
 	}
@@ -967,11 +955,11 @@ function newBoard() {
 	for (var i = 0; i < children.length; i++) {
 
 		children[i]
+			.on('ping', ping)
 			.set('angle', 270)
 			.set('frame', 0)
 			.set('framesMax', FRAMES_FALLING)
 			.set('moving', true)
-			.on('ping', ping)
 			.start();
 
 	}
@@ -998,7 +986,7 @@ function newGame() {
 	board.reset();
 	showMode();
 
-// This is a single-move board.
+// DEBUG: This is a single-move board.
 /*
 board.setPieces([
 [0,4,1,1,5,6,3,6],
@@ -1012,7 +1000,7 @@ board.setPieces([
 ]);
 */
 
-// This is a board with a cascade move available.
+// DEBUG: This is a board with a cascade move available.
 /*
 board.setPieces([
 [3,4,4,0,1,2,6,5],
@@ -1137,11 +1125,9 @@ function showCascades() {
  * Shows the How to Play modal.
  */
 function showHowToPlay() {
-// TODO: OH FFS, need to ucfirst "Click"
 
 	busy = true;
 
-// TODO: add icons
 	var tipIndex = 0;
 	var tips = [
 		{
@@ -1296,7 +1282,7 @@ function toggleMode() {
 	} else {
 
 		if (!player.numBombs) {
-			showNotice('No bombs', COLOR_ERROR);
+			showNotice('You have no bombs', COLOR_ERROR);
 		} else {
 			player.mode = MODE_BOMB;
 			showMode();
@@ -1330,7 +1316,7 @@ DGE.Keyboard.code([38, 38, 40, 40, 37, 39, 37, 39, 66, 65], (function() {
 	
 })());
 
-// Debugging
+// DEBUG
 sprites.version.on('click', boardDump);
 
 function boardDump() {
@@ -1341,7 +1327,7 @@ function boardDump() {
 	for (var y = 0; y < PIECES_Y; y++) {
 		tmp += "[";
 		for (var x = 0; x < PIECES_X; x++) {
-			if (pieces[y][x] === false) {
+			if (pieces[y][x] === true) {
 				tmp += '.,';
 			} else {
 				tmp += pieces[y][x] + ',';
@@ -1361,6 +1347,6 @@ sprites.movesText.on('click', function() {
 	DGE.log('[getPossibleMatches]');
 	DGE.log(board.getPossibleMatches());
 });
-// /Debugging
+// /DEBUG
 
 })();
