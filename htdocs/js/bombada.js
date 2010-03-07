@@ -1,12 +1,5 @@
-// BUGS:
-// TODO: andrea keeps finding bugs.
-// TODO: when you move, your move is taken away immediately,
-// this shouldn't be, it should take the move after your move is finished with everything.
-// this stuff is going to need to be redone anyway once the match-4+ stuff is ready ... sigh ...
-// TODO: make bombs give you nothing from blowing stuff up. (MAJOR)
-
 // FEATURES:
-// TODO: add icons to How to Play
+// TODO: make bombs give you nothing from blowing stuff up. (MAJOR)
 // TODO: font sprite sheet (MAJOR)
 // TODO: show notices for awesome moves (4+ match) and give you an extra move (MAJOR)
 // TODO: settings: audio on/off, credits, reset high score ...
@@ -17,7 +10,7 @@
 // ==========================================================================================
 
 // POLISH:
-// TODO: redo showNotice, maybe don't make it increase in size, kinda sloppy-looking
+// TODO: can also drag down on one piece, move to another to match.
 // TODO: polish pieces moving to their icons
 // TODO: increment the scores up on Game Over modal, don't just show them (improve game over menu)
 // TODO: OPTIMIZE! make everything a single SpriteSheet (do this LAST)
@@ -46,6 +39,7 @@ var GROUP_PIECE = 'piece';
 var MODE_BOMB = 0;
 var MODE_MOVE = 1;
 var MONEY_INCREMENT = 1;
+var PAD_HOW_TO_PLAY = 6;
 var PIECE_SIZE = 36;
 var PIECES_X = 8;
 var PIECES_Y = 8;
@@ -100,7 +94,7 @@ function init() {
 		image : assets.background,
 		width : 480,
 		height : 320
-	});
+	}).fill('#000');
 
 	highScore = DGE.Data.get('highScore');
 	if (!highScore) highScore = 10000;
@@ -226,6 +220,7 @@ function init() {
 		}),
 
 		howToPlay : new DGE.Text({
+			autoAdjust : 'height',
 			cursor : true,
 			opacity : 90,
 			size : 12,
@@ -237,8 +232,7 @@ function init() {
 			.fill(COLOR_ERROR)
 			.hide()
 			.setCSS('border-radius', '6px')
-			.setCSS('height', 'auto') // TODO: this is a hack, figure it out.
-			.setCSS('padding', '6px'),
+			.setCSS('padding', (PAD_HOW_TO_PLAY + 'px')),
 
 		howToPlayArrow : new DGE.Sprite({
 			image : assets.howToPlayArrow,
@@ -246,10 +240,6 @@ function init() {
 			height : 12,
 			z : Z_HOW_TO
 		}).hide(),
-
-		howToPlayPointer : new DGE.Sprite({
-			z : Z_HOW_TO
-		}),
 
 		modal : new DGE.Sprite({
 			width : DGE.stage.width,
@@ -304,6 +294,7 @@ function init() {
 
 		movesText : new DGE.Text({
 			align : 'center',
+			delay : 100,
 			font : 'Helvetica, Sans-Serif',
 			size : 64,
 			width : 170,
@@ -569,6 +560,8 @@ function clickPiece(pieceX, pieceY) {
  */
 function clickPieceByCoords(x, y) {
 
+	if (busy) return;
+
 	var pieceX = (x / PIECE_SIZE);
 	var pieceY = (y / PIECE_SIZE);
 
@@ -587,6 +580,10 @@ function clickPieceByCoords(x, y) {
  * @method dropBomb
  */
 function dropBomb(pieceX, pieceY) {
+
+	if (busy) return;
+
+	busy = true;
 
 	var piece = getPieceByPieceXY(pieceX, pieceY);
 
@@ -774,7 +771,7 @@ DGE.log('cascade: ' + player.cascade);
 
 					if (!this.get('active')) return;
 
-					this.offset('rotation', 18);
+					this.offset('rotation', -20);
 
 					if (this.isTouching(sprites.movesText)) {
 
@@ -848,9 +845,7 @@ function gameOver() {
 
 	sprites.modal.fade(100, DELAY_FADE);
 	sprites.overlay.fade(90, DELAY_FADE, function() {
-
 		busy = false;
-
 	});
 
 };
@@ -924,7 +919,6 @@ function makePiece(x, y, type) {
  */
 function newBoard() {
 
-	busy = false;
 	var children = DGE.Sprite.getByProperty('group', GROUP_PIECE);
 	var numPieces = (PIECES_X * PIECES_Y);
 	var pieces = board.getPieces();
@@ -1128,36 +1122,72 @@ function showHowToPlay() {
 
 	busy = true;
 
+	var icons = [];
 	var tipIndex = 0;
 	var tips = [
 		{
-			message : "This is a match-3 game. You can click on a piece, then an adjacent piece to match them.",
+			message : "This is a match-3 game. To play, click on a piece, then an adjacent piece to match them.",
 			x : 214,
 			y : 90
 		}, {
 			arrow : 45,
+			icons : [4],
 			message : "This is the number of moves you have left. You can collect Clocks to get more moves.",
 			x : 140,
 			y : 200
 		}, {
+			icons : [0, 1, 2],
 			message : "The object of the game is to collect money. Collect Diamonds ($25), Dollars ($10), and Coins ($5) to raise your score!",
 			x : 214,
 			y : 90
 		}, {
 			arrow : 60,
+			icons : [3],
 			message : "Once you collect bombs, click the bomb icon to enter Bomb Mode, then click on the board to drop a bomb. Click the bomb icon again to exit Bomb Mode.",
 			x : 100,
 			y : 95
 		}, {
-			message : "You'll want to use bombs on Crates and Barrels since you get no benefits from matching them.",
+			icons : [5, 6],
+			message : "You'll want to blow up Crates and Barrels since you get no benefits from matching them.",
 			x : 214,
 			y : 90
 		}, {
-			message : "If you match 4-of-a-kind or more, you get an extra move. Now go blow stuff up and have fun!",
+			message : "You can get extra moves by matching 4-of-a-kind or more. Now go blow stuff up and have fun!",
 			x : 214,
 			y : 90
 		}
 	];
+
+	for (var i = 0; i < 3; i++) {
+		icons.push(new DGE.Sprite({
+			width : PIECE_SIZE,
+			height : PIECE_SIZE,
+			z : Z_HOW_TO
+		}).on('ping', function() {
+
+			var index = this.get('index');
+
+			if (index === true) {
+
+				this.offset('rotation', 1);
+
+				if (this.get('rotation') >= 15) {
+					this.set('index', false);
+				}
+
+			} else {
+
+				this.offset('rotation', -1);
+
+				if (this.get('rotation') <= -15) {
+					this.set('index', true);
+				}
+
+			}
+
+		}).start());
+			
+	}
 
 	function showNext() {
 
@@ -1185,6 +1215,8 @@ function showHowToPlay() {
 			.plot(tips[tipIndex].x, tips[tipIndex].y)
 			.set('text', DGE.formatBBCode(message));
 
+		sprites.howToPlay.offset('height', -(PAD_HOW_TO_PLAY * 2));
+
 		if (tips[tipIndex].arrow) {
 			sprites.howToPlayArrow.plot(
 				(sprites.howToPlay.x - sprites.howToPlayArrow.width),
@@ -1195,19 +1227,40 @@ function showHowToPlay() {
 			sprites.howToPlayArrow.hide();
 		}
 
+		for (var i = 0; i < icons.length; i++) {
+
+			var type = (tips[tipIndex].icons && tips[tipIndex].icons[i]);
+
+			if (typeof(type) == 'number') {
+
+				var x = (sprites.howToPlay.x + sprites.howToPlay.width);
+				var y = (sprites.howToPlay.y + sprites.howToPlay.height);
+
+				icons[i].plot(
+					(x - ((i + 1) * PIECE_SIZE) + (PAD_HOW_TO_PLAY * 1.5) + (i * (PAD_HOW_TO_PLAY / 2))),
+					(y - PIECE_SIZE + (PAD_HOW_TO_PLAY * 1.5))
+				);
+
+				icons[i].set('image', pieceTypes[type]);
+				icons[i].show();
+
+			} else {
+				icons[i].hide();
+			}
+
+		}
+
 		tipIndex++;
 
 	};
 
-	if (!sprites.howToPlay.get('visible')) {
-		sprites.howToPlay
-			.set('opacity', 0)
-			.show()
-			.fade(100, 500);
-	}
+	sprites.howToPlay
+		.set('opacity', 0)
+		.show()
+		.fade(100, 500);
 
-	showNext();
 	sprites.howToPlay.on('click', showNext);
+	showNext();
 
 };
 
@@ -1248,8 +1301,7 @@ function showNotice(text, color, complete) {
 		.show()
 		.center()
 		.animate({
-			opacity : 0,
-			size : 60
+			opacity : 0
 		}, DELAY_NOTICE, {
 			complete : function() {
 				this.hide();
@@ -1296,6 +1348,13 @@ init();
 
 // Easter Egg (Konami Code).
 DGE.Keyboard.code([38, 38, 40, 40, 37, 39, 37, 39, 66, 65], (function() {
+
+	// TODO:
+	// - number of times played
+	// - number of moves
+	// - total number of bombs dropped
+	// - number of times high score beaten
+	// - total money earned
 
 	var used;
 
