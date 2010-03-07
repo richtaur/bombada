@@ -10,12 +10,12 @@
 // ==========================================================================================
 
 // POLISH:
-// TODO: can also drag down on one piece, move to another to match.
 // TODO: polish pieces moving to their icons
 // TODO: increment the scores up on Game Over modal, don't just show them (improve game over menu)
 // TODO: OPTIMIZE! make everything a single SpriteSheet (do this LAST)
 
 // NICE TO HAVE:
+// TODO: test in IE (I'm sure it's broken as ball sacks)
 // TODO: instead of "Game Over", show a message like "You can do better" or "That's all you got?" or "Whoa, nicely done!"
 // TODO: save/show the date of the high score
 // TODO: bombsUsed
@@ -63,6 +63,7 @@ var assets = {
 };
 var audio;
 var busy;
+var dragging;
 var explosionSheet;
 var highScore;
 var pieceTypes = [
@@ -94,7 +95,9 @@ function init() {
 		image : assets.background,
 		width : 480,
 		height : 320
-	}).fill('#000');
+	}).fill('#000').on('mouseUp', function() {
+		dragging = false;
+	});
 
 	highScore = DGE.Data.get('highScore');
 	if (!highScore) highScore = 10000;
@@ -484,7 +487,10 @@ function clickPiece(pieceX, pieceY) {
 	};
 
 	// We're all done if this was just a selection.
-	if (!board.isAdjacent(selectedPieceX, selectedPieceY, pieceX, pieceY)) return;
+	if (!board.isAdjacent(selectedPieceX, selectedPieceY, pieceX, pieceY)) {
+		dragging = true;
+		return;
+	}
 
 	// This wasn't a selection, it was a move!
 	busy = true;
@@ -909,6 +915,8 @@ function makePiece(x, y, type) {
 		y : (PIECE_SIZE * y)
 	}).on('mouseDown', function() {
 		clickPieceByCoords(this.x, this.y);
+	}).on('mouseOver', function() {
+		if (dragging) clickPieceByCoords(this.x, this.y);
 	});
 
 };
@@ -1349,7 +1357,7 @@ init();
 // Easter Egg (Konami Code).
 DGE.Keyboard.code([38, 38, 40, 40, 37, 39, 37, 39, 66, 65], (function() {
 
-	// TODO:
+	// TODO?:
 	// - number of times played
 	// - number of moves
 	// - total number of bombs dropped
