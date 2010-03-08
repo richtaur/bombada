@@ -207,7 +207,6 @@ function init() {
 		explosion : new DGE.Sprite({
 			delay : 100,
 			sheet : explosionSheet,
-			sheetX : 0,
 			width : 48,
 			height : 48,
 			x : 100,
@@ -215,10 +214,12 @@ function init() {
 			z : Z_UI
 		}).hide().on('ping', function() {
 
-			var sheetX = this.get('sheetX');
-			if (sheetX > 4) this.hide().stop();
+			if (this.get('sheetIndex') == 4) {
+				this.hide().stop();
+				return;
+			}
 
-			this.offset('sheetX', 1);
+			this.offset('sheetIndex', 1);
 			
 		}),
 
@@ -568,6 +569,8 @@ function clickPieceByCoords(x, y) {
 
 	if (busy) return;
 
+	dragging = false;
+
 	var pieceX = (x / PIECE_SIZE);
 	var pieceY = (y / PIECE_SIZE);
 
@@ -598,7 +601,7 @@ function dropBomb(pieceX, pieceY) {
 
 	sprites.explosion
 		.centerOn(piece)
-		.set('sheetX', 0)
+		.set('sheetIndex', 0)
 		.show()
 		.start();
 
