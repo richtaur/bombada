@@ -1,6 +1,7 @@
 // FEATURES:
 // TODO: make bombs give you nothing from blowing stuff up. (MAJOR)
 // TODO: font sprite sheet (MAJOR)
+// TODO: the x2, x3 etc multipliers are supposed to affect the stuff you just earned with that move.
 // TODO: show notices for awesome moves (4+ match) and give you an extra move (MAJOR)
 // TODO: settings: audio on/off, credits, reset high score ...
 // TODO: bomb shouldn't have a glow until you have bombs (also redo the ugly glow)
@@ -27,6 +28,7 @@ var board = exports.board;
 
 // Constants (kinda).
 var COLOR_ERROR = '#D60000';
+var COLOR_DEFAULT = '#FFF';
 var DEFAULT_NUM_MOVES = 10;
 var DELAY_ERROR = 100;
 var DELAY_FADE = 500;
@@ -103,7 +105,7 @@ function init() {
 	if (!highScore) highScore = 10000;
 	DGE.Data.set('highScore', highScore);
 
-	DGE.Text.defaults.color = '#FFF';
+	DGE.Text.defaults.color = COLOR_DEFAULT;
 	DGE.Text.defaults.font = 'Lucida Grande, Helvetica, Sans-Serif';
 	DGE.Text.defaults.shadow = '2px 2px 2px #000';
 	DGE.Text.defaults.size = 20;
@@ -325,7 +327,7 @@ function init() {
 
 			} else {
 				this.plot(resetX, resetY);
-				this.set('color', '#FFF');
+				this.set('color', COLOR_DEFAULT);
 			}
 
 			if (player.numMovesDisplay == player.numMoves) return;
@@ -381,9 +383,9 @@ function init() {
 */
 
 		version : new DGE.Text({
-			color : '#FFF',
+			color : COLOR_DEFAULT,
 			size : 8,
-			text : 'v0.5',
+			text : 'v0.6',
 			x : 145,
 			y : 55
 		})
@@ -755,7 +757,7 @@ DGE.log('cascade: ' + player.cascade);
 				piece.on('ping', function() {
 
 					if (this.isTouching(sprites.moneyIcon)) {
-						player.money += pieceWorth[this.get('type')];
+						player.money += (pieceWorth[this.get('type')] * player.cascade);
 						queue.offset('numActive', -1);
 						this.remove();
 					}
@@ -767,7 +769,8 @@ DGE.log('cascade: ' + player.cascade);
 				piece.on('ping', function() {
 
 					if (this.isTouching(sprites.bombsIcon)) {
-						player.numBombs++;
+						player.numBombs += player.cascade;
+DGE.log('just gave you ' + player.cascade + ' bombs per bomb');
 						queue.offset('numActive', -1);
 						this.remove();
 					}
@@ -784,7 +787,7 @@ DGE.log('cascade: ' + player.cascade);
 
 					if (this.isTouching(sprites.movesText)) {
 
-						player.numMoves++;
+						player.numMoves += player.cascade;
 						queue.offset('numActive', -1);
 						this.set('active', false);
 
@@ -1008,10 +1011,10 @@ board.setPieces([
 // DEBUG: This is a board with a cascade move available.
 /*
 board.setPieces([
-[3,4,4,0,1,2,6,5],
+[3,4,4,0,1,2,3,5],
 [3,4,3,1,3,4,3,2],
 [1,0,6,4,4,1,6,1],
-[0,6,6,3,0,0,3,6],
+[3,6,6,3,0,0,3,6],
 [5,5,0,0,3,2,3,5],
 [4,2,2,6,4,0,6,0],
 [4,0,0,6,1,4,4,3],
@@ -1121,7 +1124,7 @@ function showCascades() {
 
 	showNotice(
 		DGE.sprintf('\u00D7%s', player.cascade),
-		'#FFF'
+		COLOR_DEFAULT
 	);
 
 }
@@ -1376,7 +1379,7 @@ DGE.Keyboard.code([38, 38, 40, 40, 37, 39, 37, 39, 66, 65], (function() {
 		} else if (player.numMoves == 1) {
 			player.numMoves++;
 			used = true;
-			showNotice('+1 move', COLOR_ERROR);
+			showNotice('+1 move', COLOR_DEFAULT);
 		} else {
 			player.numMoves = 1;
 			showNotice('Denied!', COLOR_ERROR);
