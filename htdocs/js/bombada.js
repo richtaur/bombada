@@ -1,8 +1,5 @@
 // FEATURES:
-// TODO: make bombs give you nothing from blowing stuff up. (MAJOR)
 // TODO: font sprite sheet (MAJOR)
-// TODO: the x2, x3 etc multipliers are supposed to affect the stuff you just earned with that move.
-// TODO: show notices for awesome moves (4+ match) and give you an extra move (MAJOR)
 // TODO: settings: audio on/off, credits, reset high score ...
 // TODO: bomb shouldn't have a glow until you have bombs (also redo the ugly glow)
 
@@ -24,7 +21,7 @@
 
 (function() {
 
-var board = exports.board;
+var match3 = exports.match3;
 
 // Constants (kinda).
 var COLOR_ERROR = '#D60000';
@@ -40,7 +37,7 @@ var FRAMES_MOVING = 15;
 var GROUP_PIECE = 'piece';
 var MODE_BOMB = 0;
 var MODE_MOVE = 1;
-var MONEY_INCREMENT = 1;
+var MONEY_INCREMENT = 5;
 var PAD_HOW_TO_PLAY = 6;
 var PIECE_SIZE = 36;
 var PIECES_X = 8;
@@ -78,9 +75,9 @@ var pieceTypes = [
 	'gfx/480x320/piece_barrel.png'
 ];
 var pieceWorth = [
-	25, // Diamond.
-	10, // Dollar.
-	5 // Coin.
+	100, // Diamond.
+	50, // Dollar.
+	25 // Coin.
 ];
 var player = {};
 var queue = new DGE.Object();
@@ -111,7 +108,7 @@ function init() {
 	DGE.Text.defaults.size = 20;
 	DGE.Text.defaults.height = 30;
 
-	board.set('getNewPiece', getNewPiece);
+	match3.set('getNewPiece', getNewPiece);
 
 	new DGE.Loader([assets]);
 
@@ -490,14 +487,13 @@ function clickPiece(pieceX, pieceY) {
 	};
 
 	// We're all done if this was just a selection.
-	if (!board.isAdjacent(selectedPieceX, selectedPieceY, pieceX, pieceY)) {
+	if (!match3.isAdjacent(selectedPieceX, selectedPieceY, pieceX, pieceY)) {
 		dragging = true;
 		return;
 	}
 
 	// This wasn't a selection, it was a move!
 	busy = true;
-	player.cascade = 0;
 	var pieceCursor = getPieceByPieceXY(selectedPieceX, selectedPieceY);
 
 	queue.on('change:numActive', null);
@@ -509,14 +505,15 @@ function clickPiece(pieceX, pieceY) {
 		player.movesUsed++;
 		player.numMoves--;
 
-		if (board.hasMatches()) {
+		if (match3.hasMatches()) {
+			player.cascade = 1;
 			player.selected = {};
 			sprites.cursor.hide();
 			execMatches();
 		} else {
 
 			audio.invalidMove.play();
-			board.swapPieces(pieceX, pieceY, selectedPieceX, selectedPieceY);
+			match3.swapPieces(pieceX, pieceY, selectedPieceX, selectedPieceY);
 			showNotice('Invalid move', COLOR_ERROR, function() {
 				busy = false;
 				if (checkGameOver()) gameOver();
@@ -541,7 +538,7 @@ function clickPiece(pieceX, pieceY) {
 
 	});
 
-	board.swapPieces(pieceX, pieceY, selectedPieceX, selectedPieceY);
+	match3.swapPieces(pieceX, pieceY, selectedPieceX, selectedPieceY);
 
 	var callbacks = {
 		complete : function() {
@@ -597,6 +594,10 @@ function dropBomb(pieceX, pieceY) {
 	busy = true;
 
 	var piece = getPieceByPieceXY(pieceX, pieceY);
+	var pieces = match3.getPieces();
+	pieces[pieceY][pieceX] = true;
+
+	match3.setPieces(pieces);
 
 	player.cascade = 0;
 	player.numBombs--;
@@ -607,10 +608,8 @@ function dropBomb(pieceX, pieceY) {
 		.show()
 		.start();
 
-	execMatches([{
-		x : pieceX,
-		y : pieceY
-	}]);
+	piece.remove();
+	execMatches();
 
 };
 
@@ -621,7 +620,7 @@ function dropBomb(pieceX, pieceY) {
 function dropPieces() {
 
 	var holes;
-	var pieces = board.getPieces();
+	var pieces = match3.getPieces();
 	var stack = [];
 	var toDrop = [];
 
@@ -685,9 +684,10 @@ function dropPieces() {
 
 		if (numActive) return;
 
-		board.setPieces(setBoard());
+		match3.setPieces(setBoard());
 
-		if (board.hasMatches()) {
+		if (match3.hasMatches()) {
+			player.cascade++;
 			execMatches();
 		} else {
 
@@ -700,7 +700,7 @@ function dropPieces() {
 
 			if (checkGameOver()) {
 				gameOver();
-			} else if (!board.hasPossibleMatches()) {
+			} else if (!match3.hasPossibleMatches()) {
 				newBoard();
 			} else {
 				busy = false;
@@ -718,30 +718,38 @@ function dropPieces() {
 
 /**
  * Executes any matches on the board.
- * @param {Array} additionalMatches (optional) An array of {x:x,y:y} matches to supplement what's actually matched.
  * @method execMatches
  */
-function execMatches(additionalMatches) {
+function execMatches() {
 
-	player.cascade++;
 DGE.log('cascade: ' + player.cascade);
 
 	showCascades();
 
-	var matched = board.getPiecesMatched();
-	var pieces = board.getPieces();
-
-	if (additionalMatches) {
-		matched = matched.concat(additionalMatches);
-	}
+	var matches = match3.getMatches();
+	var pieces = match3.getPieces();
+	var toMove = {};
 
 	queue.moving = [];
 
-	for (var i = 0; i < matched.length; i++) {
+	for (var i = 0; i < matches.length; i++) {
 
-		var x = matched[i].x;
-		var y = matched[i].y;
-		var piece = getPieceByPieceXY(x, y);
+		showOfAKind(matches[i].length);
+
+		for (var j = 0; j < matches[i].length; j++) {
+
+			var x = matches[i][j].x;
+			var y = matches[i][j].y;
+			var piece = getPieceByPieceXY(x, y);
+			pieces[y][x] = true;
+			toMove[piece.id] = piece;
+
+		}
+	}
+
+	for (var id in toMove) {
+
+		var piece = toMove[id];
 
 		piece
 			.anchorToStage()
@@ -817,12 +825,11 @@ DGE.log('just gave you ' + player.cascade + ' bombs per bomb');
 				break;
 		}
 
-		pieces[y][x] = true;
 		queue.moving.push(piece);
 
 	}
 
-	board.setPieces(pieces);
+	match3.setPieces(pieces);
 	dropPieces();
 
 };
@@ -935,7 +942,7 @@ function newBoard() {
 
 	var children = DGE.Sprite.getByProperty('group', GROUP_PIECE);
 	var numPieces = (PIECES_X * PIECES_Y);
-	var pieces = board.getPieces();
+	var pieces = match3.getPieces();
 
 	showNotice('No moves', COLOR_ERROR);
 
@@ -951,7 +958,7 @@ function newBoard() {
 			if (--numPieces == 0) {
 				busy = false;
 				sprites.board.set('opacity', 0);
-				board.reset();
+				match3.reset();
 				resetBoard();
 				sprites.board.fade(100, DELAY_FADE);
 			}
@@ -991,12 +998,12 @@ function newGame() {
 		selected : {}
 	};
 
-	board.reset();
+	match3.reset();
 	showMode();
 
 // DEBUG: This is a single-move board.
 /*
-board.setPieces([
+match3.setPieces([
 [0,4,1,1,5,6,3,6],
 [3,5,5,2,6,0,6,5],
 [1,0,2,6,1,3,1,2],
@@ -1010,7 +1017,7 @@ board.setPieces([
 
 // DEBUG: This is a board with a cascade move available.
 /*
-board.setPieces([
+match3.setPieces([
 [3,4,4,0,1,2,3,5],
 [3,4,3,1,3,4,3,2],
 [1,0,6,4,4,1,6,1],
@@ -1021,6 +1028,18 @@ board.setPieces([
 [1,0,2,2,3,6,4,0],
 ]);
 */
+
+// DEBUG: This is a board with 4+-of-a-kinds available.
+match3.setPieces([
+[1,4,2,5,2,3,2,1],
+[0,3,1,1,2,5,3,0],
+[0,3,6,5,5,3,3,0],
+[1,2,3,6,1,3,1,5],
+[3,3,1,0,2,1,3,6],
+[1,0,2,5,0,0,3,5],
+[1,0,1,0,6,6,5,1],
+[2,6,4,0,1,6,3,2],
+]);
 
 	resetBoard();
 	sprites.cursor.hide();
@@ -1040,7 +1059,7 @@ board.setPieces([
 function resetBoard() {
 
 	var children = DGE.Sprite.getByProperty('group', GROUP_PIECE);
-	var pieces = board.getPieces();
+	var pieces = match3.getPieces();
 
 	for (var i = 0; i < children.length; i++) {
 		children[i].remove();
@@ -1122,12 +1141,51 @@ function showCascades() {
 
 	if (player.cascade < 2) return;
 
+	var congrats;
+	var message = '';
+	var switch1 = (DGE.rand(0, 1) == 0);
+	var switch2 = (DGE.rand(0, 1) == 0);
+
+	if (switch1) {
+		if (player.cascade == 3) {
+			if (switch2) {
+				congrats = 'Nice.';
+			} else {
+				congrats = 'Well done.';
+			}
+		} else if (player.cascade == 4) {
+			if (switch2) {
+				congrats = 'Impressive!';
+			} else {
+				congrats = 'Nicely done!';
+			}
+		}
+	}
+
+	if (player.cascade == 5) {
+		if (switch2) {
+			congrats = 'Whoa!';
+		} else {
+			congrats = "You're good!";
+		}
+	} else if (player.cascade > 5) {
+		if (switch2) {
+			congrats = 'Amazing!';
+		} else {
+			congrats = 'Astonishing!';
+		}
+	}
+
+	if (congrats) {
+		message = DGE.sprintf('. %s', congrats);
+	}
+
 	showNotice(
-		DGE.sprintf('\u00D7%s', player.cascade),
+		DGE.sprintf('\u00D7%s%s', player.cascade, message),
 		COLOR_DEFAULT
 	);
 
-}
+};
 
 /**
  * Shows the How to Play modal.
@@ -1151,7 +1209,7 @@ function showHowToPlay() {
 			y : 200
 		}, {
 			icons : [0, 1, 2],
-			message : "The object of the game is to collect money. Collect Diamonds ($25), Dollars ($10), and Coins ($5) to raise your score!",
+			message : DGE.sprintf("The object of the game is to collect money. Collect Diamonds ($%s), Dollars ($%s), and Coins ($%s) to raise your score!", pieceWorth[0], pieceWorth[1], pieceWorth[2]),
 			x : 214,
 			y : 90
 		}, {
@@ -1329,6 +1387,25 @@ function showNotice(text, color, complete) {
 };
 
 /**
+ * Displays the number of pieces just matched in a row.
+ * @method showOfAKind
+ */
+function showOfAKind(length) {
+
+	var movesGained = (length - 3);
+
+	if (!movesGained) return;
+
+	player.numMoves += movesGained;
+
+	showNotice(
+		DGE.sprintf('%s of a kind', length),
+		COLOR_DEFAULT
+	);
+
+};
+
+/**
  * Attempts to toggle between regular moves and dropping bombs.
  * @method toggleMode
  */
@@ -1394,8 +1471,8 @@ sprites.version.on('click', boardDump);
 
 function boardDump() {
 
-	var pieces = board.getPieces();
-	var tmp = "board.setPieces([\n";
+	var pieces = match3.getPieces();
+	var tmp = "match3.setPieces([\n";
 
 	for (var y = 0; y < PIECES_Y; y++) {
 		tmp += "[";
@@ -1418,7 +1495,7 @@ function boardDump() {
 
 sprites.movesText.on('click', function() {
 	DGE.log('[getPossibleMatches]');
-	DGE.log(board.getPossibleMatches());
+	DGE.log(match3.getPossibleMatches());
 });
 // /DEBUG
 
