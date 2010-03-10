@@ -1,7 +1,10 @@
 // FEATURES:
+// TODO: redo bg_bomb.png
+// TODO: redo How to Play positioning
 // TODO: font sprite sheet (MAJOR)
 // TODO: settings: audio on/off, credits, reset high score, show how to play ...
 // TODO: bomb shouldn't have a glow until you have bombs (also redo the ugly glow)
+// TODO: Level 1 ... make a formul for that and have the level meter fill up
 
 // ==========================================================================================
 // STUFF ABOVE THIS LINE ARE MUST HAVES
@@ -57,8 +60,10 @@ var assets = {
 	backgroundBomb : 'gfx/480x320/bg_bomb.png',
 	cursor : 'gfx/480x320/cursor.png',
 	howToPlayArrow : 'gfx/480x320/htp_arrow.png',
+	levelMeter : 'gfx/480x320/level_meter.png',
 	iconBomb : 'gfx/480x320/icon_bomb.png',
-	iconMoney : 'gfx/480x320/icon_money.png'
+	iconBombGlow : 'gfx/480x320/icon_bomb_glow.png',
+	settings : 'gfx/480x320/settings.png'
 };
 var audio;
 var busy;
@@ -162,21 +167,21 @@ function init() {
 		bombsIcon : new DGE.Sprite({
 			cursor : true,
 			image : assets.iconBomb,
-			width : 39,
-			height : 39,
-			x : 10,
-			y : 140
+			width : 46,
+			height : 47,
+			x : 8,
+			y : 150
 		}).on('click', toggleMode),
 
 		bombsText : new DGE.Text({
 			color : '#FE6401',
 			cursor : true,
-			size : 36,
+			size : 24,
 			text : 0,
 			width : 110,
 			height : 42,
-			x : 60,
-			y : 138,
+			x : 55,
+			y : 162,
 			z : Z_UI
 		}).on('click', toggleMode).on('ping', function() {
 
@@ -186,6 +191,12 @@ function init() {
 				player.numBombsDisplay++;
 			} else if (player.numBombsDisplay > player.numBombs) {
 				player.numBombsDisplay--;
+			}
+
+			if (player.numBombs == 0) {
+				sprites.bombsIcon.set('image', assets.iconBomb);
+			} else {
+				sprites.bombsIcon.set('image', assets.iconBombGlow);
 			}
 
 			this.set('text', DGE.formatNumber(player.numBombsDisplay));
@@ -261,6 +272,26 @@ function init() {
 			z : Z_HOW_TO
 		}).hide(),
 
+		levelMeter : new DGE.Sprite({
+			image : assets.levelMeter,
+			width : 0,
+			height : 24,
+			x : 12,
+			y : 81,
+			z : Z_MODAL
+		}),
+
+		levelText : new DGE.Text({
+			align : 'center',
+			size : 16,
+			text : 'Level 1',
+			width : 146,
+			height : 24,
+			x : 12,
+			y : 83,
+			z : Z_MODAL
+		}),
+
 		modal : new DGE.Sprite({
 			width : DGE.stage.width,
 			height : DGE.stage.height,
@@ -268,22 +299,22 @@ function init() {
 		}).hide(),
 
 		moneyIcon : new DGE.Sprite({
-			image : assets.iconMoney,
-			width : 24,
-			height : 44,
+			image : pieceTypes[0],
+			width : 36,
+			height : 36,
 			x : 10,
-			y : 80
+			y : 116
 		}),
 
 		moneyText : new DGE.Text({
-			color : '#D3B701',
+			color : '#8CEDC0',
 			delay : DELAY_MONEY,
-			size : 36,
+			size : 24,
 			text : 0,
 			width : 110,
 			height : 42,
-			x : 60,
-			y : 80,
+			x : 55,
+			y : 120,
 			z : Z_UI
 		}).on('ping', function() {
 
@@ -320,7 +351,7 @@ function init() {
 			width : 170,
 			height : 64,
 			x : 0,
-			y : 195,
+			y : 192,
 			z : Z_UI
 		}).on('ping', function() {
 
@@ -356,7 +387,7 @@ function init() {
 
 		})
 			.set('resetX', 0)
-			.set('resetY', 195)
+			.set('resetY', 192)
 			.start(),
 
 		notice : new DGE.Text({
@@ -372,15 +403,15 @@ function init() {
 			z : Z_OVERLAY
 		}).fill('#000').hide(),
 
-/* TODO
-		speaker : new DGE.Sprite({
+		settings : new DGE.Sprite({
 			cursor : true,
-			image : assets.soundOn,
-			width : 64,
-			height : 53,
-			x : 262,
-			y : 30
+			image : assets.settings,
+			width : 36,
+			height : 36,
+			x : 3,
+			y : 280
 		}).on('click', function() {
+// TODO
 
 			if (DGE.Audio.enabled) {
 				DGE.Audio.enabled = false;
@@ -394,12 +425,11 @@ function init() {
 			}
 
 		}),
-*/
 
 		version : new DGE.Text({
 			color : COLOR_DEFAULT,
 			size : 8,
-			text : 'v0.6',
+			text : 'v0.7',
 			x : 145,
 			y : 55
 		})
@@ -894,7 +924,35 @@ function gameOver() {
  * @return {Number} A random piece type.
  */
 function getNewPiece() {
-	return DGE.rand(pieceTypes);
+
+	var percentage = DGE.rand(1, 100);
+/*
+var pieceTypes = [
+	'gfx/480x320/piece_diamond.png',
+	'gfx/480x320/piece_money.png',
+	'gfx/480x320/piece_coin.png',
+	'gfx/480x320/piece_bomb.png',
+	'gfx/480x320/piece_clock.png',
+	'gfx/480x320/piece_crate.png',
+	'gfx/480x320/piece_barrel.png'
+];
+*/
+
+	// 5% chance of getting bombs or clocks.
+	if (percentage <= 20) {
+		if (DGE.rand(0, 1) == 0) {
+			return 3;
+		} else {
+			return 4;
+		}
+	} else {
+		if (DGE.rand(0, 1) == 0) {
+			return DGE.rand(0, 2);
+		} else {
+			return DGE.rand(5, 6);
+		}
+	}
+
 };
 
 /**
@@ -1199,7 +1257,7 @@ function showCascades() {
 	}
 
 	if (congrats) {
-		message = DGE.sprintf('. %s', congrats);
+		message = DGE.sprintf(' %s', congrats);
 	}
 
 	showNotice(
