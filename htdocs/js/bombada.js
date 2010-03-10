@@ -1,6 +1,6 @@
 // FEATURES:
 // TODO: font sprite sheet (MAJOR)
-// TODO: settings: audio on/off, credits, reset high score ...
+// TODO: settings: audio on/off, credits, reset high score, show how to play ...
 // TODO: bomb shouldn't have a glow until you have bombs (also redo the ugly glow)
 
 // ==========================================================================================
@@ -11,6 +11,8 @@
 // TODO: polish pieces moving to their icons
 // TODO: increment the scores up on Game Over modal, don't just show them (improve game over menu)
 // TODO: OPTIMIZE! make everything a single SpriteSheet (do this LAST)
+// TODO: showNotice should move up while it's fading, so that new messages can appear below it
+// this also means that it shouldn't just be the one message sprite, but multiple ones that delete themselves
 
 // NICE TO HAVE:
 // TODO: test in IE (I'm sure it's broken as ball sacks)
@@ -56,9 +58,7 @@ var assets = {
 	cursor : 'gfx/480x320/cursor.png',
 	howToPlayArrow : 'gfx/480x320/htp_arrow.png',
 	iconBomb : 'gfx/480x320/icon_bomb.png',
-	iconMoney : 'gfx/480x320/icon_money.png',
-	soundOn : 'gfx/volume_on.png',
-	soundOff : 'gfx/volume_off.png'
+	iconMoney : 'gfx/480x320/icon_money.png'
 };
 var audio;
 var busy;
@@ -113,14 +113,29 @@ function init() {
 	new DGE.Loader([assets]);
 
 	audio = {
+		explosion : new DGE.Audio({
+			file : 'audio/sound_effects/drop_bomb.ogg'
+		}),
 		invalidMove : new DGE.Audio({
-			file : 'audio/EnemyDeath.ogg'
+			file : 'audio/sound_effects/invalid_move.ogg'
+		}),
+		modeSwitch : new DGE.Audio({
+			file : 'audio/sound_effects/enter_exit_bomb_mode.ogg'
+		}),
+		movePiece : new DGE.Audio({
+			file : 'audio/sound_effects/piece_move.ogg'
 		}),
 		music : new DGE.Audio({
 			file : 'audio/sly.ogg'
 		}),
-		soundOn : new DGE.Audio({
-			file : 'audio/Powerup.ogg'
+		noBombs : new DGE.Audio({
+			file : 'audio/sound_effects/no_bombs.ogg'
+		}),
+		noMoves : new DGE.Audio({
+			file : 'audio/sound_effects/no_moves_left.ogg'
+		}),
+		selectPiece : new DGE.Audio({
+			file : 'audio/sound_effects/piece_select.ogg'
 		})
 	};
 
@@ -185,6 +200,8 @@ function init() {
 			x : 53,
 			y : 2,
 			z : Z_UI
+		}).on('click', function() {
+			this.hide();
 		}).on('ping', function() {
 
 			var offset = 1.5;
@@ -286,13 +303,13 @@ function init() {
 
 		movesLeft : new DGE.Text({
 			align : 'center',
-			color : '#A3A4AA',
+			color : '#AAA',
 			size : 14,
 			text : 'Moves Left',
 			width : 170,
-			height : 15,
+			height : 17,
 			x : 0,
-			y : 290
+			y : 257
 		}),
 
 		movesText : new DGE.Text({
@@ -303,7 +320,7 @@ function init() {
 			width : 170,
 			height : 64,
 			x : 0,
-			y : 220,
+			y : 195,
 			z : Z_UI
 		}).on('ping', function() {
 
@@ -339,7 +356,7 @@ function init() {
 
 		})
 			.set('resetX', 0)
-			.set('resetY', 220)
+			.set('resetY', 195)
 			.start(),
 
 		notice : new DGE.Text({
@@ -489,12 +506,15 @@ function clickPiece(pieceX, pieceY) {
 	// We're all done if this was just a selection.
 	if (!match3.isAdjacent(selectedPieceX, selectedPieceY, pieceX, pieceY)) {
 		dragging = true;
+		audio.selectPiece.play();
 		return;
 	}
 
 	// This wasn't a selection, it was a move!
 	busy = true;
 	var pieceCursor = getPieceByPieceXY(selectedPieceX, selectedPieceY);
+
+	audio.movePiece.play();
 
 	queue.on('change:numActive', null);
 	queue.set('numActive', 2);
@@ -608,6 +628,7 @@ function dropBomb(pieceX, pieceY) {
 		.show()
 		.start();
 
+	audio.explosion.play();
 	piece.remove();
 	execMatches();
 
@@ -777,8 +798,7 @@ DGE.log('cascade: ' + player.cascade);
 				piece.on('ping', function() {
 
 					if (this.isTouching(sprites.bombsIcon)) {
-						player.numBombs += player.cascade;
-DGE.log('just gave you ' + player.cascade + ' bombs per bomb');
+						player.numBombs++;
 						queue.offset('numActive', -1);
 						this.remove();
 					}
@@ -795,7 +815,7 @@ DGE.log('just gave you ' + player.cascade + ' bombs per bomb');
 
 					if (this.isTouching(sprites.movesText)) {
 
-						player.numMoves += player.cascade;
+						player.numMoves++;
 						queue.offset('numActive', -1);
 						this.set('active', false);
 
@@ -1030,6 +1050,7 @@ match3.setPieces([
 */
 
 // DEBUG: This is a board with 4+-of-a-kinds available.
+/*
 match3.setPieces([
 [1,4,2,5,2,3,2,1],
 [0,3,1,1,2,5,3,0],
@@ -1040,6 +1061,7 @@ match3.setPieces([
 [1,0,1,0,6,6,5,1],
 [2,6,4,0,1,6,3,2],
 ]);
+*/
 
 	resetBoard();
 	sprites.cursor.hide();
@@ -1418,6 +1440,7 @@ function toggleMode() {
 		if (!player.numMoves) {
 			showNotice('No moves left', COLOR_ERROR);
 		} else {
+			audio.modeSwitch.play();
 			player.mode = MODE_MOVE;
 			showMode();
 		}
@@ -1426,7 +1449,9 @@ function toggleMode() {
 
 		if (!player.numBombs) {
 			showNotice('You have no bombs', COLOR_ERROR);
+			audio.noBombs.play();
 		} else {
+			audio.modeSwitch.play();
 			player.mode = MODE_BOMB;
 			showMode();
 		}
