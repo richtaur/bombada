@@ -16,6 +16,7 @@
 // TODO: OPTIMIZE! make everything a single SpriteSheet (do this LAST)
 // TODO: showNotice should move up while it's fading, so that new messages can appear below it
 // this also means that it shouldn't just be the one message sprite, but multiple ones that delete themselves
+// TODO: add backgrounds to the icons used in How To Play, since they're hard to see as is
 
 // NICE TO HAVE:
 // TODO: test in IE (I'm sure it's broken as ball sacks)
@@ -44,6 +45,7 @@ var MODE_BOMB = 0;
 var MODE_MOVE = 1;
 var MONEY_INCREMENT = 5;
 var PAD_HOW_TO_PLAY = 6;
+var PER_LEVEL = 1000;
 var PIECE_SIZE = 36;
 var PIECES_X = 8;
 var PIECES_Y = 8;
@@ -279,7 +281,27 @@ function init() {
 			x : 12,
 			y : 81,
 			z : Z_MODAL
-		}),
+		}).on('ping', function() {
+
+			var goal = (player.level * PER_LEVEL);
+			var width = ((player.levelProgress / goal) * 146);
+
+			if (this.get('width') < width) {
+				this.offset('width', 1);
+			}
+
+			if (player.levelProgress >= goal) {
+
+				player.level++;
+				player.levelProgress -= goal;
+
+				showNotice('Level up!', COLOR_DEFAULT);
+				sprites.levelText.set('text', DGE.sprintf('Level %s', player.level));
+				this.set('width', 0);
+
+			}
+
+		}).start(),
 
 		levelText : new DGE.Text({
 			align : 'center',
@@ -413,6 +435,9 @@ function init() {
 		}).on('click', function() {
 // TODO
 
+DGE.log('open settings dialog');
+
+/*
 			if (DGE.Audio.enabled) {
 				DGE.Audio.enabled = false;
 				audio.music.pause();
@@ -423,6 +448,7 @@ function init() {
 				audio.soundOn.play();
 				this.set('image', (assets.soundOn));
 			}
+*/
 
 		}),
 
@@ -816,7 +842,9 @@ DGE.log('cascade: ' + player.cascade);
 				piece.on('ping', function() {
 
 					if (this.isTouching(sprites.moneyIcon)) {
-						player.money += (pieceWorth[this.get('type')] * player.cascade);
+						var money = (pieceWorth[this.get('type')] * player.cascade);
+						player.levelProgress += money;
+						player.money += money;
 						queue.offset('numActive', -1);
 						this.remove();
 					}
@@ -1066,6 +1094,8 @@ function newBoard() {
 function newGame() {
 
 	player = {
+		level : 1,
+		levelProgress : 0,
 		money : 0,
 		moneyDisplay : 0,
 		movesUsed : 0,
