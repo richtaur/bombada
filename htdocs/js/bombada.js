@@ -1,26 +1,25 @@
 // FEATURES:
-// TODO: redo bg_bomb.png
-// TODO: redo How to Play positioning
 // TODO: font sprite sheet (MAJOR)
 // TODO: settings: audio on/off, credits, reset high score, show how to play ...
-// TODO: bomb shouldn't have a glow until you have bombs (also redo the ugly glow)
-// TODO: Level 1 ... make a formul for that and have the level meter fill up
+
+// GAMEPLAY TWEAKS:
+// TODO: bombs/clocks should be increasingly less likely to spawn as player.level increases
 
 // ==========================================================================================
 // STUFF ABOVE THIS LINE ARE MUST HAVES
 // ==========================================================================================
 
 // POLISH:
+// TODO: add backgrounds to the icons used in How To Play, since they're hard to see as is
 // TODO: polish pieces moving to their icons
 // TODO: increment the scores up on Game Over modal, don't just show them (improve game over menu)
 // TODO: OPTIMIZE! make everything a single SpriteSheet (do this LAST)
-// TODO: showNotice should move up while it's fading, so that new messages can appear below it
 // this also means that it shouldn't just be the one message sprite, but multiple ones that delete themselves
-// TODO: add backgrounds to the icons used in How To Play, since they're hard to see as is
 
 // NICE TO HAVE:
-// TODO: test in IE (I'm sure it's broken as ball sacks)
-// TODO: instead of "Game Over", show a message like "You can do better" or "That's all you got?" or "Whoa, nicely done!"
+// TODO: test in IE (I'm sure it's broken as balls)
+// TODO: instead of "Game Over", show a message like:
+// "You can do better" or "That's all you got?" or "Whoa, nicely done!"
 // TODO: save/show the date of the high score
 // TODO: bombsUsed
 // TODO: show a hint after X seconds of no activity
@@ -265,6 +264,7 @@ function init() {
 			.fill(COLOR_ERROR)
 			.hide()
 			.setCSS('border-radius', '6px')
+			.setCSS('box-shadow', '5px 5px 10px #000')
 			.setCSS('padding', (PAD_HOW_TO_PLAY + 'px')),
 
 		howToPlayArrow : new DGE.Sprite({
@@ -412,13 +412,6 @@ function init() {
 			.set('resetY', 192)
 			.start(),
 
-		notice : new DGE.Text({
-			align : 'center',
-			width : DGE.stage.width,
-			height : 50,
-			z : Z_MODAL
-		}).hide(),
-
 		overlay : new DGE.Sprite({
 			width : DGE.stage.width,
 			height : DGE.stage.height,
@@ -508,7 +501,8 @@ DGE.log('open settings dialog');
 	//audio.music.play();
 	newGame();
 
-	if (!DGE.Data.get('shownHowToPlay')) {
+	//if (!DGE.Data.get('shownHowToPlay')) {
+	if (1) {
 		showHowToPlay();
 	}
 
@@ -953,6 +947,8 @@ function gameOver() {
  */
 function getNewPiece() {
 
+	return DGE.rand(pieceTypes);
+
 	var percentage = DGE.rand(1, 100);
 /*
 var pieceTypes = [
@@ -1312,11 +1308,11 @@ function showHowToPlay() {
 			x : 214,
 			y : 90
 		}, {
-			arrow : 45,
+			arrow : 40,
 			icons : [4],
 			message : "This is the number of moves you have left. You can collect Clocks to get more moves.",
 			x : 140,
-			y : 200
+			y : 170
 		}, {
 			icons : [0, 1, 2],
 			message : DGE.sprintf("The object of the game is to collect money. Collect Diamonds ($%s), Dollars ($%s), and Coins ($%s) to raise your score!", pieceWorth[0], pieceWorth[1], pieceWorth[2]),
@@ -1326,8 +1322,8 @@ function showHowToPlay() {
 			arrow : 60,
 			icons : [3],
 			message : "Once you collect bombs, click the bomb icon to enter Bomb Mode, then click on the board to drop a bomb. Click the bomb icon again to exit Bomb Mode.",
-			x : 100,
-			y : 95
+			x : 170,
+			y : 112
 		}, {
 			icons : [5, 6],
 			message : "You'll want to blow up Crates and Barrels since you get no benefits from matching them.",
@@ -1465,7 +1461,7 @@ function showMode() {
 };
 
 /**
- * Shows the user a notice message.
+ * Shows the user a notice.
  * @param {String} text The text to display.
  * @param {String} color The color of the text.
  * @param {Function} complete (optional) The function to execute when complete.
@@ -1473,24 +1469,24 @@ function showMode() {
  */
 function showNotice(text, color, complete) {
 
-	sprites.notice
-		.set({
-			color : color,
-			opacity : 100,
-			size : 30,
-			text : text
-		})
-		.show()
+	new DGE.Text({
+		align : 'center',
+		color : color,
+		opacity : 100,
+		size : 30,
+		text : text,
+		width : DGE.stage.width,
+		height : 50,
+		z : Z_MODAL
+	})
 		.center()
 		.animate({
-			opacity : 0
+			opacity : 0,
+			y : 100
 		}, DELAY_NOTICE, {
 			complete : function() {
-				this.hide();
 				if (complete) complete();
-			},
-			tween : function() {
-				this.center();
+				this.remove();
 			}
 		});
 
