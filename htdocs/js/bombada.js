@@ -1,7 +1,3 @@
-// FEATURES:
-// TODO: font sprite sheet (MAJOR)
-// TODO: settings: audio on/off, credits, reset high score, show how to play ...
-
 // GAMEPLAY TWEAKS:
 // TODO: bombs/clocks should be increasingly less likely to spawn as player.level increases
 
@@ -10,11 +6,13 @@
 // ==========================================================================================
 
 // POLISH:
+// TODO: add Level to the How to Play dialog
 // TODO: add backgrounds to the icons used in How To Play, since they're hard to see as is
 // TODO: polish pieces moving to their icons
 // TODO: increment the scores up on Game Over modal, don't just show them (improve game over menu)
 // TODO: OPTIMIZE! make everything a single SpriteSheet (do this LAST)
 // this also means that it shouldn't just be the one message sprite, but multiple ones that delete themselves
+// TODO: showNotice should queue up messages so they don't overlap
 
 // NICE TO HAVE:
 // TODO: test in IE (I'm sure it's broken as balls)
@@ -34,6 +32,7 @@ var COLOR_DEFAULT = '#FFF';
 var DEFAULT_NUM_MOVES = 10;
 var DELAY_ERROR = 100;
 var DELAY_FADE = 500;
+var DELAY_SETTINGS = 250;
 var DELAY_MONEY = 10;
 var DELAY_MOVE = 250;
 var DELAY_NOTICE = 750;
@@ -49,7 +48,7 @@ var PIECE_SIZE = 36;
 var PIECES_X = 8;
 var PIECES_Y = 8;
 var VELOCITY_PIECE = 15;
-var Z_HOW_TO = 7; // The how-to-play modal.
+var Z_MAX = 7; // The how-to-play modal and settings icon.
 var Z_MODAL = 6; // The game over message stuff.
 var Z_OVERLAY = 5; // Over everything but the stuff within the game over modal.
 var Z_UI = 4; // Always above the pieces.
@@ -59,12 +58,16 @@ var Z_PIECE = 2; // Above the background.
 var assets = {
 	background : 'gfx/480x320/bg.png',
 	backgroundBomb : 'gfx/480x320/bg_bomb.png',
+	check : 'gfx/480x320/check.png',
+	checkGrey : 'gfx/480x320/check_grey.png',
 	cursor : 'gfx/480x320/cursor.png',
+	dialogCredits : 'gfx/480x320/credits.png',
+	dialogSettings : 'gfx/480x320/settings.png',
 	howToPlayArrow : 'gfx/480x320/htp_arrow.png',
 	levelMeter : 'gfx/480x320/level_meter.png',
 	iconBomb : 'gfx/480x320/icon_bomb.png',
 	iconBombGlow : 'gfx/480x320/icon_bomb_glow.png',
-	settings : 'gfx/480x320/settings.png'
+	settings : 'gfx/480x320/icon_settings.png'
 };
 var audio;
 var busy;
@@ -259,7 +262,7 @@ function init() {
 			text : DGE.formatBBCode(DGE.sprintf("[b]How to Play (1/6)[/b]<br><br>This is a match-3 game. You can %s on a piece, then an adjacent piece to match them.", DGE.platform.terms.click)),
 			width : 200,
 			height : 200,
-			z : Z_HOW_TO
+			z : Z_MAX
 		})
 			.fill(COLOR_ERROR)
 			.hide()
@@ -271,7 +274,7 @@ function init() {
 			image : assets.howToPlayArrow,
 			width : 12,
 			height : 12,
-			z : Z_HOW_TO
+			z : Z_MAX
 		}).hide(),
 
 		levelMeter : new DGE.Sprite({
@@ -280,7 +283,7 @@ function init() {
 			height : 24,
 			x : 12,
 			y : 81,
-			z : Z_MODAL
+			z : Z_UI
 		}).on('ping', function() {
 
 			var goal = (player.level * PER_LEVEL);
@@ -311,7 +314,7 @@ function init() {
 			height : 24,
 			x : 12,
 			y : 83,
-			z : Z_MODAL
+			z : Z_UI
 		}),
 
 		modal : new DGE.Sprite({
@@ -418,17 +421,27 @@ function init() {
 			z : Z_OVERLAY
 		}).fill('#000').hide(),
 
-		settings : new DGE.Sprite({
+		settingsIcon : new DGE.Sprite({
 			cursor : true,
 			image : assets.settings,
 			width : 36,
 			height : 36,
 			x : 3,
-			y : 280
+			y : 280,
+			z : Z_MAX
 		}).on('click', function() {
-// TODO
 
-DGE.log('open settings dialog');
+			sprites.overlay.set('opacity', 0).show().animate({
+				opacity : 90
+			}, DELAY_SETTINGS);
+
+			sprites.settings.dialogSettings.animate({
+				x : 10
+			}, DELAY_SETTINGS);
+
+			sprites.settings.dialogCredits.animate({
+				x : 246
+			}, DELAY_SETTINGS)
 
 /*
 			if (DGE.Audio.enabled) {
@@ -498,13 +511,158 @@ DGE.log('open settings dialog');
 
 	};
 
+	initSettings();
+
 	//audio.music.play();
 	newGame();
 
-	//if (!DGE.Data.get('shownHowToPlay')) {
-	if (1) {
+	if (!DGE.Data.get('shownHowToPlay')) {
 		showHowToPlay();
 	}
+
+};
+
+/**
+ * Initializes the settings sprites and events.
+ * @method initSettings
+ */
+function initSettings() {
+
+	function clickHowToPlay() {
+
+		if (DGE.Data.get('shownHowToPlay')) {
+			checkHowToPlay.set('image', assets.check);
+			textHowToPlay.set('opacity', 100);
+			DGE.Data.set('shownHowToPlay', false);
+		} else {
+			checkHowToPlay.set('image', assets.checkGrey);
+			textHowToPlay.set('opacity', 50);
+			DGE.Data.set('shownHowToPlay', true);
+		}
+
+	};
+
+	function clickPlayMusic() {
+
+		if (DGE.Data.get('playMusic')) {
+			checkPlayMusic.set('image', assets.checkGrey);
+			textPlayMusic.set('opacity', 50);
+			DGE.Data.set('playMusic', false);
+		} else {
+			checkPlayMusic.set('image', assets.check);
+			textPlayMusic.set('opacity', 100);
+			DGE.Data.set('playMusic', true);
+		}
+
+	};
+
+	function clickPlaySFX() {
+
+		if (DGE.Data.get('playSFX')) {
+			checkPlaySFX.set('image', assets.checkGrey);
+			textPlaySFX.set('opacity', 50);
+			DGE.Data.set('playSFX', false);
+		} else {
+			checkPlaySFX.set('image', assets.check);
+			textPlaySFX.set('opacity', 100);
+			DGE.Data.set('playSFX', true);
+		}
+
+	};
+
+	sprites.settings = {
+
+		dialogSettings : new DGE.Sprite({
+			image : assets.dialogSettings,
+			width : 224,
+			height : 300,
+			x : -224,
+			y : 10,
+			z : Z_MODAL
+		}),
+
+		dialogCredits :	new DGE.Sprite({
+			image : assets.dialogCredits,
+			width : 224,
+			height : 300,
+			x : DGE.stage.width,
+			y : 10,
+			z : Z_MODAL
+		})
+
+	};
+
+	// How to Play.
+	var textHowToPlay = new DGE.Text({
+		cursor : true,
+		opacity : (DGE.Data.get('shownHowToPlay') ? 50 : 100),
+		parent : sprites.settings.dialogSettings,
+		size : 12,
+		text : DGE.formatBBCode('Show [b]How to Play[/b] dialog.'),
+		width : 300,
+		x : 50,
+		y : 80,
+		z : Z_MODAL
+	}).on('click', clickHowToPlay);
+
+	var checkHowToPlay = new DGE.Sprite({
+		cursor : true,
+		image : (DGE.Data.get('shownHowToPlay') ? assets.checkGrey : assets.check),
+		parent : sprites.settings.dialogSettings,
+		width : 36,
+		height : 36,
+		x : 12,
+		y : 68,
+		z : Z_MODAL
+	}).on('click', clickHowToPlay);
+
+	// Play music.
+	var textPlayMusic = new DGE.Text({
+		cursor : true,
+		opacity : (DGE.Data.get('playMusic') ? 100 : 50),
+		parent : sprites.settings.dialogSettings,
+		size : 12,
+		text : 'Play music.',
+		width : 300,
+		x : 50,
+		y : 120,
+		z : Z_MODAL
+	}).on('click', clickPlayMusic);
+
+	var checkPlayMusic = new DGE.Sprite({
+		cursor : true,
+		image : (DGE.Data.get('playMusic') ? assets.check : assets.checkGrey),
+		parent : sprites.settings.dialogSettings,
+		width : 36,
+		height : 36,
+		x : 12,
+		y : 108,
+		z : Z_MODAL
+	}).on('click', clickPlayMusic);
+
+	// Play sound effects.
+	var textPlaySFX = new DGE.Text({
+		cursor : true,
+		opacity : (DGE.Data.get('playSFX') ? 100 : 50),
+		parent : sprites.settings.dialogSettings,
+		size : 12,
+		text : 'Play sound effects.',
+		width : 300,
+		x : 50,
+		y : 160,
+		z : Z_MODAL
+	}).on('click', clickPlaySFX);
+
+	var checkPlaySFX = new DGE.Sprite({
+		cursor : true,
+		image : (DGE.Data.get('playSFX') ? assets.check : assets.checkGrey),
+		parent : sprites.settings.dialogSettings,
+		width : 36,
+		height : 36,
+		x : 12,
+		y : 148,
+		z : Z_MODAL
+	}).on('click', clickPlaySFX);
 
 };
 
@@ -926,9 +1084,10 @@ function gameOver() {
 
 	sprites.gameOver.yourScore.set('text', ('Your Score: ' + DGE.formatNumber(player.money)));
 	sprites.gameOver.highScore.set('text', ('High Score: ' + DGE.formatNumber(highScore)));
-	sprites.gameOver.movesUsed.set('text', ('Total Moves: ' + DGE.formatNumber(player.movesUsed)));
+	sprites.gameOver.movesUsed.set('text', ('Moves Used: ' + DGE.formatNumber(player.movesUsed)));
 
 	sprites.modal.set('opacity', 0);
+	sprites.overlay.plot(0, 0);
 	sprites.overlay.set('opacity', 0);
 
 	sprites.modal.show();
@@ -1308,7 +1467,7 @@ function showHowToPlay() {
 			x : 214,
 			y : 90
 		}, {
-			arrow : 40,
+			arrow : 45,
 			icons : [4],
 			message : "This is the number of moves you have left. You can collect Clocks to get more moves.",
 			x : 140,
@@ -1340,7 +1499,7 @@ function showHowToPlay() {
 		icons.push(new DGE.Sprite({
 			width : PIECE_SIZE,
 			height : PIECE_SIZE,
-			z : Z_HOW_TO
+			z : Z_MAX
 		}).on('ping', function() {
 
 			var index = this.get('index');
