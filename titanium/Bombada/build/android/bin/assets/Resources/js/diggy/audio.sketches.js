@@ -1,1 +1,0 @@
-DGE.Audio.mute();DGE.Audio.set('volume',100);DGE.Audio.get('volume');levelTwo.on('complete',fn);levelTwo.on('play',fn);levelTwo.on('stop',fn);

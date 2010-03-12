@@ -1,2 +1,0 @@
-DGE.Layer=DGE.extend(DGE.Sprite,function(conf){conf=(conf||{});conf.width=DGE.STAGE_WIDTH;conf.height=DGE.STAGE_HEIGHT;this.init(conf);DGE.Layer._layers[this._id]=this;});DGE.Layer._layers={};DGE.Layer.showOnly=function(show){var layers=DGE.Layer._layers;for(var k in layers){if(k!=show){layers[k].hide();}}
-return layers[show].show();};

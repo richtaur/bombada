@@ -1,8 +1,6 @@
 // POLISH:
-// TODO: add Level to the How to Play dialog
-// TODO: add backgrounds to the icons used in How To Play, since they're hard to see as is
+// TODO: redo explosion
 // TODO: increment the scores up on Game Over modal, don't just show them (improve game over menu)
-// TODO: showNotice should queue up messages so they don't overlap
 // TODO: OPTIMIZE! make everything a single SpriteSheet (do this LAST)
 
 // NICE TO HAVE:
@@ -20,7 +18,7 @@ var match3 = exports.match3;
 // Constants (kinda).
 var COLOR_ERROR = '#D60000';
 var COLOR_DEFAULT = '#FFF';
-var DEFAULT_NUM_MOVES = 10;
+var DEFAULT_NUM_MOVES = 3;
 var DELAY_ERROR = 100;
 var DELAY_FADE = 500;
 var DELAY_SETTINGS = 250;
@@ -38,8 +36,8 @@ var PER_LEVEL = 1000;
 var PIECE_SIZE = 36;
 var PIECES_X = 8;
 var PIECES_Y = 8;
-var TYPE_BOMB = 0;
-var TYPE_CLOCK = 1;
+var TYPE_CLOCK = 0;
+var TYPE_BOMB = 1;
 var TYPE_DIAMOND = 2;
 var TYPE_DOLLAR = 3;
 var TYPE_COIN = 4;
@@ -74,8 +72,8 @@ var dragging;
 var explosionSheet;
 var highScore;
 var pieceTypes = [
-	'gfx/480x320/piece_bomb.png',
 	'gfx/480x320/piece_clock.png',
+	'gfx/480x320/piece_bomb.png',
 	'gfx/480x320/piece_diamond.png',
 	'gfx/480x320/piece_money.png',
 	'gfx/480x320/piece_coin.png',
@@ -254,7 +252,6 @@ function init() {
 			cursor : true,
 			opacity : 90,
 			size : 12,
-			text : DGE.formatBBCode(DGE.sprintf("[b]How to Play (1/6)[/b]<br><br>This is a match-3 game. You can %s on a piece, then an adjacent piece to match them.", DGE.platform.terms.click)),
 			width : 200,
 			height : 200,
 			z : Z_MAX
@@ -485,7 +482,8 @@ function init() {
 	if (DGE.Data.get('playMusic')) audio.music.play();
 	newGame();
 
-	if (!DGE.Data.get('shownHowToPlay')) {
+	if (1) {
+//	if (!DGE.Data.get('shownHowToPlay')) {
 		showHowToPlay();
 	}
 
@@ -1106,7 +1104,7 @@ function gameOver() {
 function getNewPiece() {
 
 	if (DGE.rand(1, 100) <= (player.level * 10)) {
-		return DGE.rand(2, (pieceTypes.length - 1));
+		return DGE.rand(1, (pieceTypes.length - 1));
 	}
 
 	return DGE.rand(pieceTypes);
@@ -1302,6 +1300,8 @@ match3.setPieces([
 
 	resetBoard();
 	sprites.cursor.hide();
+	sprites.levelMeter.set('width', 0);
+	sprites.levelText.set('text', DGE.sprintf('Level %s', player.level));
 	sprites.moneyText.set('text', player.money);
 	sprites.bombsText.set('text', player.numBombs);
 	sprites.movesText.set('text', player.numMoves);
@@ -1457,40 +1457,47 @@ function showHowToPlay() {
 	var tipIndex = 0;
 	var tips = [
 		{
-			message : "This is a match-3 game. To play, click on a piece, then an adjacent piece to match them.",
+			message : "Bombada is a [b]match-3[/b] game. To play, click on a piece, then an adjacent piece to match them into straight lines of 3 or more.",
 			x : 214,
 			y : 90
 		}, {
-			arrow : 45,
-			icons : [TYPE_CLOCK],
-			message : "This is the number of moves you have left. You can collect Clocks to get more moves.",
-			x : 140,
-			y : 170
-		}, {
+			arrow : 50,
 			icons : [TYPE_DIAMOND, TYPE_DOLLAR, TYPE_COIN],
 			message : DGE.sprintf(
-				"The object of the game is to collect money. Collect Diamonds ($%s), Dollars ($%s), and Coins ($%s) to raise your score!",
+				"Your goal is to collect money. Collect as many [b]Diamonds[/b] ($%s), [b]Dollars[/b] ($%s), and [b]Coins[/b] ($%s) as you can!",
 				getWorth(TYPE_DIAMOND),
 				getWorth(TYPE_DOLLAR),
 				getWorth(TYPE_COIN)
 			),
-			x : 214,
-			y : 90
+			x : 170,
+			y : 75
+		}, {
+			arrow : 55,
+			icons : [TYPE_CLOCK],
+			message : "This is the number of moves remaining before the game is over. You can get more moves by matching [b]4-of-a-kind[/b] or more, or by collecting [b]Clocks[/b].",
+			x : 140,
+			y : 165
+		}, {
+			arrow : 45,
+			message : "As you get more money, your [b]Difficulty Level[/b] will increase, which causes the board to generate fewer [b]Clocks[/b].",
+			x : 170,
+			y : 40
 		}, {
 			arrow : 60,
 			icons : [TYPE_BOMB],
-			message : "Once you collect bombs, click the bomb icon to enter Bomb Mode, then click on the board to drop a bomb. Click the bomb icon again to exit Bomb Mode.",
+			message : "Once you collect bombs, click the bomb icon to enter [b]Bomb Mode[/b], then click on the board to drop a bomb. Click the bomb icon again to exit [b]Bomb Mode[/b].",
 			x : 170,
 			y : 112
 		}, {
 			icons : [TYPE_CRATE, TYPE_BARREL],
-			message : "You'll want to blow up Crates and Barrels since you get no benefits from matching them.",
+			message : "You'll want to blow up [b]Crates[/b] and [b]Barrels[/b] since you get no benefits from matching them.",
 			x : 214,
 			y : 90
 		}, {
-			message : "You can get extra moves by matching 4-of-a-kind or more. Now go blow stuff up and have fun!",
-			x : 214,
-			y : 90
+			arrow : 75,
+			message : "Click the [b]Settings Icon[/b] for options, credits, or to see this tutorial again. Have fun!",
+			x : 55,
+			y : 208
 		}
 	];
 
@@ -1536,6 +1543,10 @@ function showHowToPlay() {
 				this.hide();
 			});
 
+			sprites.howToPlayArrow.fade(0, 500, function() {
+				this.hide();
+			});
+
 			return;
 
 		}
@@ -1577,7 +1588,7 @@ function showHowToPlay() {
 					(y - PIECE_SIZE + (PAD_HOW_TO_PLAY * 1.5))
 				);
 
-				icons[i].set('image', pieceTypes[type]);
+				icons[i].set('image', pieceTypes[type].replace(/\.png/, '_dark.png'));
 				icons[i].show();
 
 			} else {
@@ -1631,14 +1642,14 @@ var showNotice = (function() {
 
 	new DGE.Interval({
 		delay : 750,
-		interval : pop
+		interval : shift
 	}).start();
 
-	function pop() {
+	function shift() {
 
 		if (!notices.length) return;
 
-		var notice = notices.pop();
+		var notice = notices.shift();
 
 		new DGE.Text({
 			align : 'center',
@@ -1683,10 +1694,16 @@ function showOfAKind(length) {
 
 	if (!movesGained) return;
 
-	player.numMoves += movesGained;
-
 	showNotice(
 		DGE.sprintf('%s of a kind', length),
+		COLOR_DEFAULT
+	);
+
+	player.numMoves += movesGained;
+	var message = ((movesGained == 1) ? '%s extra move' : '%s extra moves!');
+
+	showNotice(
+		DGE.sprintf(message, movesGained),
 		COLOR_DEFAULT
 	);
 
