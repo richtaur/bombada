@@ -1,18 +1,9 @@
-// GAMEPLAY TWEAKS:
-// TODO: bombs/clocks should be increasingly less likely to spawn as player.level increases
-
-// ==========================================================================================
-// STUFF ABOVE THIS LINE ARE MUST HAVES
-// ==========================================================================================
-
 // POLISH:
 // TODO: add Level to the How to Play dialog
 // TODO: add backgrounds to the icons used in How To Play, since they're hard to see as is
-// TODO: polish pieces moving to their icons
 // TODO: increment the scores up on Game Over modal, don't just show them (improve game over menu)
-// TODO: OPTIMIZE! make everything a single SpriteSheet (do this LAST)
-// this also means that it shouldn't just be the one message sprite, but multiple ones that delete themselves
 // TODO: showNotice should queue up messages so they don't overlap
+// TODO: OPTIMIZE! make everything a single SpriteSheet (do this LAST)
 
 // NICE TO HAVE:
 // TODO: test in IE (I'm sure it's broken as balls)
@@ -47,6 +38,13 @@ var PER_LEVEL = 1000;
 var PIECE_SIZE = 36;
 var PIECES_X = 8;
 var PIECES_Y = 8;
+var TYPE_BOMB = 0;
+var TYPE_CLOCK = 1;
+var TYPE_DIAMOND = 2;
+var TYPE_DOLLAR = 3;
+var TYPE_COIN = 4;
+var TYPE_CRATE = 5;
+var TYPE_BARREL = 6;
 var VELOCITY_PIECE = 15;
 var Z_MAX = 7; // The how-to-play modal and settings icon.
 var Z_MODAL = 6; // The game over message stuff.
@@ -63,6 +61,7 @@ var assets = {
 	cursor : 'gfx/480x320/cursor.png',
 	dialogCredits : 'gfx/480x320/credits.png',
 	dialogSettings : 'gfx/480x320/settings.png',
+	done : 'gfx/480x320/done.png',
 	howToPlayArrow : 'gfx/480x320/htp_arrow.png',
 	levelMeter : 'gfx/480x320/level_meter.png',
 	iconBomb : 'gfx/480x320/icon_bomb.png',
@@ -75,21 +74,17 @@ var dragging;
 var explosionSheet;
 var highScore;
 var pieceTypes = [
+	'gfx/480x320/piece_bomb.png',
+	'gfx/480x320/piece_clock.png',
 	'gfx/480x320/piece_diamond.png',
 	'gfx/480x320/piece_money.png',
 	'gfx/480x320/piece_coin.png',
-	'gfx/480x320/piece_bomb.png',
-	'gfx/480x320/piece_clock.png',
 	'gfx/480x320/piece_crate.png',
 	'gfx/480x320/piece_barrel.png'
 ];
-var pieceWorth = [
-	100, // Diamond.
-	50, // Dollar.
-	25 // Coin.
-];
 var player = {};
 var queue = new DGE.Object();
+var screen;
 var sprites;
 
 /**
@@ -323,12 +318,13 @@ function init() {
 			z : Z_MODAL
 		}).hide(),
 
-		moneyIcon : new DGE.Sprite({
-			image : pieceTypes[0],
+		moneyIcon : new DGE.Text({
+			size : 30,
+			text : '$',
 			width : 36,
 			height : 36,
-			x : 10,
-			y : 116
+			x : 18,
+			y : 117
 		}),
 
 		moneyText : new DGE.Text({
@@ -428,35 +424,8 @@ function init() {
 			height : 36,
 			x : 3,
 			y : 280,
-			z : Z_MAX
-		}).on('click', function() {
-
-			sprites.overlay.set('opacity', 0).show().animate({
-				opacity : 90
-			}, DELAY_SETTINGS);
-
-			sprites.settings.dialogSettings.animate({
-				x : 10
-			}, DELAY_SETTINGS);
-
-			sprites.settings.dialogCredits.animate({
-				x : 246
-			}, DELAY_SETTINGS)
-
-/*
-			if (DGE.Audio.enabled) {
-				DGE.Audio.enabled = false;
-				audio.music.pause();
-				this.set('image', (assets.soundOff));
-			} else {
-				DGE.Audio.enabled = true;
-				audio.music.play();
-				audio.soundOn.play();
-				this.set('image', (assets.soundOn));
-			}
-*/
-
-		}),
+			z : Z_UI
+		}).on('click', toggleSettings),
 
 		version : new DGE.Text({
 			color : COLOR_DEFAULT,
@@ -513,7 +482,7 @@ function init() {
 
 	initSettings();
 
-	//audio.music.play();
+	if (DGE.Data.get('playMusic')) audio.music.play();
 	newGame();
 
 	if (!DGE.Data.get('shownHowToPlay')) {
@@ -664,6 +633,31 @@ function initSettings() {
 		z : Z_MODAL
 	}).on('click', clickPlaySFX);
 
+	new DGE.Sprite({
+		cursor : true,
+		image : assets.done,
+		parent : sprites.settings.dialogSettings,
+		width : 175,
+		height : 48,
+		x : 26,
+		y : 229,
+		z : Z_MODAL
+	}).on('click', toggleSettings);
+
+	// Credcits!h <-- ROFL!
+
+	new DGE.Text({
+		align : 'center',
+		parent : sprites.settings.dialogCredits,
+		size : 12,
+		text : DGE.formatBBCode('Game Design & Programming<br>Matt Hackett<br><br>Music & Sound Effects<br>Josh Morse<br><br>Art Assets<br>Andrius<br><br>Game Testing<br>Andrea Abney'),
+		width : 212,
+		height : 200,
+		x : 6,
+		y : 75,
+		z : Z_MODAL
+	});
+
 };
 
 /**
@@ -714,7 +708,7 @@ function clickPiece(pieceX, pieceY) {
 	// We're all done if this was just a selection.
 	if (!match3.isAdjacent(selectedPieceX, selectedPieceY, pieceX, pieceY)) {
 		dragging = true;
-		audio.selectPiece.play();
+		if (DGE.Data.get('playSFX')) audio.selectPiece.play();
 		return;
 	}
 
@@ -722,7 +716,7 @@ function clickPiece(pieceX, pieceY) {
 	busy = true;
 	var pieceCursor = getPieceByPieceXY(selectedPieceX, selectedPieceY);
 
-	audio.movePiece.play();
+	if (DGE.Data.get('playSFX')) audio.movePiece.play();
 
 	queue.on('change:numActive', null);
 	queue.set('numActive', 2);
@@ -740,7 +734,7 @@ function clickPiece(pieceX, pieceY) {
 			execMatches();
 		} else {
 
-			audio.invalidMove.play();
+			if (DGE.Data.get('playSFX')) audio.invalidMove.play();
 			match3.swapPieces(pieceX, pieceY, selectedPieceX, selectedPieceY);
 			showNotice('Invalid move', COLOR_ERROR, function() {
 				busy = false;
@@ -836,7 +830,7 @@ function dropBomb(pieceX, pieceY) {
 		.show()
 		.start();
 
-	audio.explosion.play();
+	if (DGE.Data.get('playSFX')) audio.explosion.play();
 	piece.remove();
 	execMatches();
 
@@ -866,7 +860,8 @@ function dropPieces() {
 				stack[x]++;
 			} else if (holes) {
 				toDrop.push(
-					getPieceByPieceXY(x, y).set('maxY', ((y + holes) * PIECE_SIZE))
+					getPieceByPieceXY(x, y)
+						.set('maxY', ((y + holes) * PIECE_SIZE))
 				);
 			}
 
@@ -877,7 +872,8 @@ function dropPieces() {
 	for (var x = 0; x < PIECES_X; x++) {
 		for (var i = 0; i < stack[x]; i++) {
 			toDrop.push(
-				makePiece(x, -(i + 1), getNewPiece()).set('maxY', ((stack[x] - i - 1) * PIECE_SIZE))
+				makePiece(x, -(i + 1), getNewPiece())
+					.set('maxY', ((stack[x] - i - 1) * PIECE_SIZE))
 			);
 		}
 	}
@@ -951,8 +947,6 @@ function dropPieces() {
  */
 function execMatches() {
 
-DGE.log('cascade: ' + player.cascade);
-
 	showCascades();
 
 	var matches = match3.getMatches();
@@ -987,14 +981,15 @@ DGE.log('cascade: ' + player.cascade);
 			.set('group', null);
 
 		switch (piece.get('type')) {
-			case 0: // Diamond.
-			case 1: // Money.
-			case 2: // Coin.
+
+			case TYPE_DIAMOND:
+			case TYPE_DOLLAR:
+			case TYPE_COIN:
 				piece.set('angle', piece.getAngleTo(sprites.moneyIcon));
 				piece.on('ping', function() {
 
 					if (this.isTouching(sprites.moneyIcon)) {
-						var money = (pieceWorth[this.get('type')] * player.cascade);
+						var money = (getWorth(this.get('type')) * player.cascade);
 						player.levelProgress += money;
 						player.money += money;
 						queue.offset('numActive', -1);
@@ -1003,7 +998,8 @@ DGE.log('cascade: ' + player.cascade);
 
 				});
 				break;
-			case 3: // Bomb.
+
+			case TYPE_BOMB:
 				piece.set('angle', piece.getAngleTo(sprites.bombsIcon));
 				piece.on('ping', function() {
 
@@ -1015,7 +1011,8 @@ DGE.log('cascade: ' + player.cascade);
 
 				});
 				break;
-			case 4: // Clock.
+
+			case TYPE_CLOCK:
 				piece.set('angle', piece.getAngleTo(sprites.movesText.getCenter()));
 				piece.on('ping', function() {
 
@@ -1037,7 +1034,8 @@ DGE.log('cascade: ' + player.cascade);
 
 				});
 				break;
-			default: // Everything else.
+
+			default: // Crates & Barrels.
 				piece.set('angle', 270);
 				piece.set('framesMax', FRAMES_FALLING);
 				piece.set('z', Z_MOVING);
@@ -1053,6 +1051,7 @@ DGE.log('cascade: ' + player.cascade);
 
 				});
 				break;
+
 		}
 
 		queue.moving.push(piece);
@@ -1106,35 +1105,11 @@ function gameOver() {
  */
 function getNewPiece() {
 
-	return DGE.rand(pieceTypes);
-
-	var percentage = DGE.rand(1, 100);
-/*
-var pieceTypes = [
-	'gfx/480x320/piece_diamond.png',
-	'gfx/480x320/piece_money.png',
-	'gfx/480x320/piece_coin.png',
-	'gfx/480x320/piece_bomb.png',
-	'gfx/480x320/piece_clock.png',
-	'gfx/480x320/piece_crate.png',
-	'gfx/480x320/piece_barrel.png'
-];
-*/
-
-	// 5% chance of getting bombs or clocks.
-	if (percentage <= 20) {
-		if (DGE.rand(0, 1) == 0) {
-			return 3;
-		} else {
-			return 4;
-		}
-	} else {
-		if (DGE.rand(0, 1) == 0) {
-			return DGE.rand(0, 2);
-		} else {
-			return DGE.rand(5, 6);
-		}
+	if (DGE.rand(1, 100) <= (player.level * 10)) {
+		return DGE.rand(2, (pieceTypes.length - 1));
 	}
+
+	return DGE.rand(pieceTypes);
 
 };
 
@@ -1160,7 +1135,26 @@ function getPieceByPieceXY(pieceX, pieceY) {
 		}
 	}
 
-	throw DGE.sprintf("Couldn't find a piece at %s, %s (checked %s, %s)", pieceX, pieceY, testX, testY);
+	throw DGE.sprintf("getPieceByPieceXY: Couldn't find a piece at %s, %s (checked %s, %s).", pieceX, pieceY, testX, testY);
+
+};
+
+/**
+ * Gets the monetary worth of a piece type.
+ * @param {Number} type The piece type to check.
+ * @return {Number} The worth of the piece type.
+ * @method getWorth
+ */
+function getWorth(type) {
+
+	switch (type) {
+		case TYPE_DIAMOND:
+			return 100;
+		case TYPE_DOLLAR:
+			return 50;
+		case TYPE_COIN:
+			return 25;
+	}
 
 };
 
@@ -1281,9 +1275,9 @@ match3.setPieces([
 // DEBUG: This is a board with a cascade move available.
 /*
 match3.setPieces([
-[3,4,4,0,1,2,3,5],
-[3,4,3,1,3,4,3,2],
-[1,0,6,4,4,1,6,1],
+[3,1,3,0,1,2,3,5],
+[3,1,4,1,3,1,3,2],
+[4,4,6,1,4,1,6,1],
 [3,6,6,3,0,0,3,6],
 [5,5,0,0,3,2,3,5],
 [4,2,2,6,4,0,6,0],
@@ -1468,23 +1462,28 @@ function showHowToPlay() {
 			y : 90
 		}, {
 			arrow : 45,
-			icons : [4],
+			icons : [TYPE_CLOCK],
 			message : "This is the number of moves you have left. You can collect Clocks to get more moves.",
 			x : 140,
 			y : 170
 		}, {
-			icons : [0, 1, 2],
-			message : DGE.sprintf("The object of the game is to collect money. Collect Diamonds ($%s), Dollars ($%s), and Coins ($%s) to raise your score!", pieceWorth[0], pieceWorth[1], pieceWorth[2]),
+			icons : [TYPE_DIAMOND, TYPE_DOLLAR, TYPE_COIN],
+			message : DGE.sprintf(
+				"The object of the game is to collect money. Collect Diamonds ($%s), Dollars ($%s), and Coins ($%s) to raise your score!",
+				getWorth(TYPE_DIAMOND),
+				getWorth(TYPE_DOLLAR),
+				getWorth(TYPE_COIN)
+			),
 			x : 214,
 			y : 90
 		}, {
 			arrow : 60,
-			icons : [3],
+			icons : [TYPE_BOMB],
 			message : "Once you collect bombs, click the bomb icon to enter Bomb Mode, then click on the board to drop a bomb. Click the bomb icon again to exit Bomb Mode.",
 			x : 170,
 			y : 112
 		}, {
-			icons : [5, 6],
+			icons : [TYPE_CRATE, TYPE_BARREL],
 			message : "You'll want to blow up Crates and Barrels since you get no benefits from matching them.",
 			x : 214,
 			y : 90
@@ -1626,30 +1625,53 @@ function showMode() {
  * @param {Function} complete (optional) The function to execute when complete.
  * @method showNotice
  */
-function showNotice(text, color, complete) {
+var showNotice = (function() {
 
-	new DGE.Text({
-		align : 'center',
-		color : color,
-		opacity : 100,
-		size : 30,
-		text : text,
-		width : DGE.stage.width,
-		height : 50,
-		z : Z_MODAL
-	})
-		.center()
-		.animate({
-			opacity : 0,
-			y : 100
-		}, DELAY_NOTICE, {
-			complete : function() {
-				if (complete) complete();
-				this.remove();
-			}
+	var notices = [];
+
+	new DGE.Interval({
+		delay : 750,
+		interval : pop
+	}).start();
+
+	function pop() {
+
+		if (!notices.length) return;
+
+		var notice = notices.pop();
+
+		new DGE.Text({
+			align : 'center',
+			color : notice.color,
+			opacity : 100,
+			size : 30,
+			text : notice.text,
+			width : DGE.stage.width,
+			height : 50,
+			z : Z_MODAL
+		})
+			.center()
+			.animate({
+				opacity : 0,
+				y : 100
+			}, DELAY_NOTICE, {
+				complete : function() {
+					if (notice.complete) notice.complete();
+					this.remove();
+				}
+			});
+
+	};
+
+	return function(text, color, complete) {
+		notices.push({
+			text : text,
+			color : color,
+			complete : complete
 		});
+	};
 
-};
+})();
 
 /**
  * Displays the number of pieces just matched in a row.
@@ -1683,7 +1705,7 @@ function toggleMode() {
 		if (!player.numMoves) {
 			showNotice('No moves left', COLOR_ERROR);
 		} else {
-			audio.modeSwitch.play();
+			if (DGE.Data.get('playSFX')) audio.modeSwitch.play();
 			player.mode = MODE_MOVE;
 			showMode();
 		}
@@ -1692,12 +1714,65 @@ function toggleMode() {
 
 		if (!player.numBombs) {
 			showNotice('You have no bombs', COLOR_ERROR);
-			audio.noBombs.play();
+			if (DGE.Data.get('playSFX')) audio.noBombs.play();
 		} else {
-			audio.modeSwitch.play();
+			if (DGE.Data.get('playSFX')) audio.modeSwitch.play();
 			player.mode = MODE_BOMB;
 			showMode();
 		}
+
+	}
+
+};
+
+/**
+ * Toggles the settings dialog.
+ * @method toggleSettings
+ */
+function toggleSettings() {
+
+	if (busy) return;
+
+	busy = true;
+
+	if (screen == 'settings') {
+
+		sprites.overlay.animate({
+			opacity : 0
+		}, DELAY_SETTINGS);
+
+		sprites.settings.dialogSettings.animate({
+			x : -sprites.settings.dialogSettings.width
+		}, DELAY_SETTINGS);
+
+		sprites.settings.dialogCredits.animate({
+			x : DGE.stage.width
+		}, DELAY_SETTINGS, {
+			complete : function() {
+				busy = false;
+				screen = null;
+				sprites.overlay.hide();
+			}
+		});
+
+	} else {
+
+		sprites.overlay.set('opacity', 0).show().animate({
+			opacity : 90
+		}, DELAY_SETTINGS);
+
+		sprites.settings.dialogSettings.animate({
+			x : 10
+		}, DELAY_SETTINGS);
+
+		sprites.settings.dialogCredits.animate({
+			x : 246
+		}, DELAY_SETTINGS, {
+			complete : function() {
+				busy = false;
+				screen = 'settings';
+			}
+		});
 
 	}
 
