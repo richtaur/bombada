@@ -1,4 +1,6 @@
 // POLISH:
+// TODO: get rid of the showNotice delay (when there are no notices queued up, why wait 750ms?)
+// TODO: turning off music should stop the music ...
 // TODO: redo explosion
 // TODO: increment the scores up on Game Over modal, don't just show them (improve game over menu)
 // TODO: OPTIMIZE! make everything a single SpriteSheet (do this LAST)
@@ -18,7 +20,7 @@ var match3 = exports.match3;
 // Constants (kinda).
 var COLOR_ERROR = '#D60000';
 var COLOR_DEFAULT = '#FFF';
-var DEFAULT_NUM_MOVES = 3;
+var DEFAULT_NUM_MOVES = 10;
 var DELAY_ERROR = 100;
 var DELAY_FADE = 500;
 var DELAY_SETTINGS = 250;
@@ -427,7 +429,7 @@ function init() {
 		version : new DGE.Text({
 			color : COLOR_DEFAULT,
 			size : 8,
-			text : 'v0.7',
+			text : 'v0.8',
 			x : 145,
 			y : 55
 		})
@@ -1588,7 +1590,7 @@ function showHowToPlay() {
 					(y - PIECE_SIZE + (PAD_HOW_TO_PLAY * 1.5))
 				);
 
-				icons[i].set('image', pieceTypes[type].replace(/\.png/, '_dark.png'));
+				icons[i].set('image', pieceTypes[type].replace(/\.png/, '_dark.png?damnit'));
 				icons[i].show();
 
 			} else {
