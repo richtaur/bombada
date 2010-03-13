@@ -484,8 +484,7 @@ function init() {
 	if (DGE.Data.get('playMusic')) audio.music.play();
 	newGame();
 
-	if (1) {
-//	if (!DGE.Data.get('shownHowToPlay')) {
+	if (!DGE.Data.get('shownHowToPlay')) {
 		showHowToPlay();
 	}
 
@@ -695,7 +694,7 @@ function clickPiece(pieceX, pieceY) {
 
 	var pieceClicked = getPieceByPieceXY(pieceX, pieceY);
 
-	sprites.cursor.centerOn(pieceClicked).show();
+	sprites.cursor.centerOn(pieceClicked).start().show();
 
 	var selectedPieceX = player.selected.pieceX;
 	var selectedPieceY = player.selected.pieceY;
@@ -730,7 +729,7 @@ function clickPiece(pieceX, pieceY) {
 		if (match3.hasMatches()) {
 			player.cascade = 1;
 			player.selected = {};
-			sprites.cursor.hide();
+			sprites.cursor.stop().hide();
 			execMatches();
 		} else {
 
@@ -1301,7 +1300,7 @@ match3.setPieces([
 */
 
 	resetBoard();
-	sprites.cursor.hide();
+	sprites.cursor.stop().hide();
 	sprites.levelMeter.set('width', 0);
 	sprites.levelText.set('text', DGE.sprintf('Level %s', player.level));
 	sprites.moneyText.set('text', player.money);
@@ -1717,7 +1716,7 @@ function showOfAKind(length) {
  */
 function toggleMode() {
 
-	sprites.cursor.hide();
+	sprites.cursor.stop().hide();
 
 	if (player.mode == MODE_BOMB) {
 
