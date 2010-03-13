@@ -1,7 +1,5 @@
 // POLISH:
-// TODO: get rid of the showNotice delay (when there are no notices queued up, why wait 750ms?)
 // TODO: turning off music should stop the music ...
-// TODO: redo explosion
 // TODO: increment the scores up on Game Over modal, don't just show them (improve game over menu)
 // TODO: OPTIMIZE! make everything a single SpriteSheet (do this LAST)
 
@@ -9,7 +7,6 @@
 // TODO: test in IE (I'm sure it's broken as balls)
 // TODO: instead of "Game Over", show a message like:
 // "You can do better" or "That's all you got?" or "Whoa, nicely done!"
-// TODO: save/show the date of the high score
 // TODO: bombsUsed
 // TODO: show a hint after X seconds of no activity
 
@@ -480,13 +477,10 @@ function init() {
 	};
 
 	initSettings();
-
-	if (DGE.Data.get('playMusic')) audio.music.play();
 	newGame();
 
-	if (!DGE.Data.get('shownHowToPlay')) {
-		showHowToPlay();
-	}
+	if (DGE.Data.get('playMusic')) audio.music.play();
+	if (!DGE.Data.get('shownHowToPlay')) showHowToPlay();
 
 };
 
@@ -1639,48 +1633,36 @@ function showMode() {
  */
 var showNotice = (function() {
 
-	var notices = [];
+	var HEIGHT = 30;
+	var y = 135;
 
-	new DGE.Interval({
-		delay : 750,
-		interval : shift
-	}).start();
-
-	function shift() {
-
-		if (!notices.length) return;
-
-		var notice = notices.shift();
+	return function(text, color, complete) {
 
 		new DGE.Text({
 			align : 'center',
-			color : notice.color,
+			color : color,
 			opacity : 100,
 			size : 30,
-			text : notice.text,
+			text : text,
 			width : DGE.stage.width,
 			height : 50,
 			z : Z_MODAL
 		})
 			.center()
+			.set('y', y)
 			.animate({
 				opacity : 0,
-				y : 100
+				y : (y - 35)
 			}, DELAY_NOTICE, {
 				complete : function() {
-					if (notice.complete) notice.complete();
+					y -= HEIGHT;
+					if (complete) complete();
 					this.remove();
 				}
 			});
 
-	};
+		y += HEIGHT;
 
-	return function(text, color, complete) {
-		notices.push({
-			text : text,
-			color : color,
-			complete : complete
-		});
 	};
 
 })();
