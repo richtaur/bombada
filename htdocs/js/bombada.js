@@ -1,12 +1,12 @@
 // POLISH:
 // TODO: turning off music should stop the music ...
 // TODO: increment the scores up on Game Over modal, don't just show them (improve game over menu)
-// TODO: OPTIMIZE! make everything a single SpriteSheet (do this LAST)
+// TODO: instead of "Game Over", show a message like:
+// "You can do better" or "That's all you got?" or "Whoa, nicely done!"
+// TODO: OPTIMIZE! make everything a single SpriteSheet (do this VERY LAST)
 
 // NICE TO HAVE:
 // TODO: test in IE (I'm sure it's broken as balls)
-// TODO: instead of "Game Over", show a message like:
-// "You can do better" or "That's all you got?" or "Whoa, nicely done!"
 // TODO: bombsUsed
 // TODO: show a hint after X seconds of no activity
 
@@ -643,7 +643,12 @@ function initSettings() {
 		align : 'center',
 		parent : sprites.settings.dialogCredits,
 		size : 12,
-		text : DGE.formatBBCode('Game Design & Programming<br>Matt Hackett<br><br>Music & Sound Effects<br>Josh Morse<br><br>Art Assets<br>Andrius<br><br>Game Testing<br>Andrea Abney'),
+		text : DGE.formatBBCode(
+			'Game Design & Programming<br>Matt Hackett' +
+			'<br><br>Music & Sound Effects<br>Josh Morse' +
+			'<br><br>Visual Design<br>Ricky Romero' +
+			'<br><br>Game Testing<br>Andrea Abney'
+		),
 		width : 212,
 		height : 200,
 		x : 6,
