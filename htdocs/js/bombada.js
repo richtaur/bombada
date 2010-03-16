@@ -1,5 +1,4 @@
 // POLISH:
-// TODO: turning off music should stop the music ...
 // TODO: increment the scores up on Game Over modal, don't just show them (improve game over menu)
 // TODO: instead of "Game Over", show a message like:
 // "You can do better" or "That's all you got?" or "Whoa, nicely done!"
@@ -7,8 +6,8 @@
 
 // NICE TO HAVE:
 // TODO: test in IE (I'm sure it's broken as balls)
-// TODO: bombsUsed
 // TODO: show a hint after X seconds of no activity
+// TODO: bombsUsed
 
 (function() {
 
@@ -17,10 +16,10 @@ var match3 = exports.match3;
 // Constants (kinda).
 var COLOR_ERROR = '#D60000';
 var COLOR_DEFAULT = '#FFF';
-var DEFAULT_NUM_MOVES = 10;
+var DEFAULT_NUM_MOVES = 1;
 var DELAY_ERROR = 100;
 var DELAY_FADE = 500;
-var DELAY_SETTINGS = 250;
+var DELAY_MODAL = 250;
 var DELAY_MONEY = 10;
 var DELAY_MOVE = 250;
 var DELAY_NOTICE = 750;
@@ -43,12 +42,12 @@ var TYPE_COIN = 4;
 var TYPE_CRATE = 5;
 var TYPE_BARREL = 6;
 var VELOCITY_PIECE = 15;
-var Z_MAX = 7; // The how-to-play modal and settings icon.
+var Z_MAX = 7; // The how-to-play modal.
 var Z_MODAL = 6; // The game over message stuff.
 var Z_OVERLAY = 5; // Over everything but the stuff within the game over modal.
 var Z_UI = 4; // Always above the pieces.
 var Z_MOVING = 3; // Moving, so above the other pieces to prevent visual clutter.
-var Z_PIECE = 2; // Above the background.
+var Z_PIECE = 2; // Just above the background.
 
 var assets = {
 	background : 'gfx/480x320/bg.png',
@@ -57,12 +56,14 @@ var assets = {
 	checkGrey : 'gfx/480x320/check_grey.png',
 	cursor : 'gfx/480x320/cursor.png',
 	dialogCredits : 'gfx/480x320/credits.png',
+	dialogGameOver : 'gfx/480x320/game_over.png',
 	dialogSettings : 'gfx/480x320/settings.png',
 	done : 'gfx/480x320/done.png',
 	howToPlayArrow : 'gfx/480x320/htp_arrow.png',
 	levelMeter : 'gfx/480x320/level_meter.png',
 	iconBomb : 'gfx/480x320/icon_bomb.png',
 	iconBombGlow : 'gfx/480x320/icon_bomb_glow.png',
+	playAgain : 'gfx/480x320/play_again.png',
 	settings : 'gfx/480x320/icon_settings.png'
 };
 var audio;
@@ -433,54 +434,76 @@ function init() {
 
 	};
 
-	sprites.gameOver = {
-		header : new DGE.Text({
-			align : 'center',
-			parent : sprites.modal,
-			size : 40,
-			text : 'Game Over',
-			width : DGE.stage.width,
-			height : 50,
-			y : 50
-		}),
-		yourScore : new DGE.Text({
-			align : 'center',
-			parent : sprites.modal,
-			width : DGE.stage.width,
-			height : 30,
-			y : 120
-		}),
-		highScore : new DGE.Text({
-			align : 'center',
-			parent : sprites.modal,
-			width : DGE.stage.width,
-			height : 30,
-			y : 145
-		}),
-		movesUsed : new DGE.Text({
-			align : 'center',
-			parent : sprites.modal,
-			width : DGE.stage.width,
-			height : 30,
-			y : 170
-		}),
-		playAgain : new DGE.Text({
-			align : 'center',
-			cursor : true,
-			parent : sprites.modal,
-			width : DGE.stage.width,
-			text : 'Play Again?',
-			height : 30,
-			y : 220
-		}).on('click', newGame)
-
-	};
-
+	initGameOver();
 	initSettings();
 	newGame();
 
 	if (DGE.Data.get('playMusic')) audio.music.play();
-	if (!DGE.Data.get('shownHowToPlay')) showHowToPlay();
+	//if (!DGE.Data.get('shownHowToPlay')) showHowToPlay();
+
+};
+
+/**
+ * Initializes the game over sprites and events.
+ * @method initGameOver
+ */
+function initGameOver() {
+
+	sprites.gameOver = {};
+
+	sprites.gameOver.dialog = new DGE.Sprite({
+		image : assets.dialogGameOver,
+		width : 460,
+		height : 300,
+		x : 10,
+		y : DGE.stage.height,
+		z : Z_MODAL
+	});
+
+	sprites.gameOver.yourScore = new DGE.Text({
+		align : 'center',
+		parent : sprites.gameOver.dialog,
+		width : DGE.stage.width,
+		height : 30,
+		y : 120
+	});
+
+	sprites.gameOver.highScore = new DGE.Text({
+		align : 'center',
+		parent : sprites.gameOver.dialog,
+		width : DGE.stage.width,
+		height : 30,
+		y : 145
+	});
+
+	sprites.gameOver.movesUsed = new DGE.Text({
+		align : 'center',
+		parent : sprites.gameOver.dialog,
+		width : DGE.stage.width,
+		height : 30,
+		y : 170
+	});
+
+	sprites.gameOver.playAgain = new DGE.Sprite({
+		align : 'center',
+		cursor : true,
+		image : assets.playAgain,
+		parent : sprites.gameOver.dialog,
+		width : 302,
+		height : 48,
+		x : 88,
+		y : 239
+	}).on('click', function() {
+
+		sprites.overlay.fade(0, DELAY_FADE);
+
+		sprites.gameOver.dialog.animate({
+			y : DGE.stage.height
+		}, DELAY_MODAL, {
+			complete : newGame
+		});
+
+	});
 
 };
 
@@ -507,13 +530,15 @@ function initSettings() {
 	function clickPlayMusic() {
 
 		if (DGE.Data.get('playMusic')) {
+			audio.music.stop();
 			checkPlayMusic.set('image', assets.checkGrey);
-			textPlayMusic.set('opacity', 50);
 			DGE.Data.set('playMusic', false);
+			textPlayMusic.set('opacity', 50);
 		} else {
+			audio.music.play();
 			checkPlayMusic.set('image', assets.check);
-			textPlayMusic.set('opacity', 100);
 			DGE.Data.set('playMusic', true);
+			textPlayMusic.set('opacity', 100);
 		}
 
 	};
@@ -1092,7 +1117,15 @@ function gameOver() {
 
 	sprites.modal.fade(100, DELAY_FADE);
 	sprites.overlay.fade(90, DELAY_FADE, function() {
-		busy = false;
+
+		sprites.gameOver.dialog.animate({
+			y : 10
+		}, DELAY_MODAL, {
+			complete : function() {
+				busy = false;
+			}
+		});
+
 	});
 
 };
@@ -1744,15 +1777,15 @@ function toggleSettings() {
 
 		sprites.overlay.animate({
 			opacity : 0
-		}, DELAY_SETTINGS);
+		}, DELAY_MODAL);
 
 		sprites.settings.dialogSettings.animate({
 			x : -sprites.settings.dialogSettings.width
-		}, DELAY_SETTINGS);
+		}, DELAY_MODAL);
 
 		sprites.settings.dialogCredits.animate({
 			x : DGE.stage.width
-		}, DELAY_SETTINGS, {
+		}, DELAY_MODAL, {
 			complete : function() {
 				busy = false;
 				screen = null;
@@ -1764,15 +1797,15 @@ function toggleSettings() {
 
 		sprites.overlay.set('opacity', 0).show().animate({
 			opacity : 90
-		}, DELAY_SETTINGS);
+		}, DELAY_MODAL);
 
 		sprites.settings.dialogSettings.animate({
 			x : 10
-		}, DELAY_SETTINGS);
+		}, DELAY_MODAL);
 
 		sprites.settings.dialogCredits.animate({
 			x : 246
-		}, DELAY_SETTINGS, {
+		}, DELAY_MODAL, {
 			complete : function() {
 				busy = false;
 				screen = 'settings';
