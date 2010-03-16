@@ -9,7 +9,7 @@ var match3 = exports.match3;
 // Constants (kinda).
 var COLOR_ERROR = '#D60000';
 var COLOR_DEFAULT = '#FFF';
-var DEFAULT_NUM_MOVES = 1;
+var DEFAULT_NUM_MOVES = 10;
 var DELAY_ERROR = 100;
 var DELAY_FADE = 500;
 var DELAY_MODAL = 250;
