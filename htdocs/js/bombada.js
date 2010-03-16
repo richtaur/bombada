@@ -1,13 +1,6 @@
-// POLISH:
-// TODO: increment the scores up on Game Over modal, don't just show them (improve game over menu)
-// TODO: instead of "Game Over", show a message like:
-// "You can do better" or "That's all you got?" or "Whoa, nicely done!"
-// TODO: OPTIMIZE! make everything a single SpriteSheet (do this VERY LAST)
-
-// NICE TO HAVE:
 // TODO: test in IE (I'm sure it's broken as balls)
 // TODO: show a hint after X seconds of no activity
-// TODO: bombsUsed
+// TODO: OPTIMIZE! make everything a single SpriteSheet (do this VERY LAST)
 
 (function() {
 
@@ -25,6 +18,7 @@ var DELAY_MOVE = 250;
 var DELAY_NOTICE = 750;
 var FRAMES_FALLING = 30;
 var FRAMES_MOVING = 15;
+var GAME_OVER_INCREMENT = 50;
 var GROUP_PIECE = 'piece';
 var MODE_BOMB = 0;
 var MODE_MOVE = 1;
@@ -309,12 +303,6 @@ function init() {
 			z : Z_UI
 		}),
 
-		modal : new DGE.Sprite({
-			width : DGE.stage.width,
-			height : DGE.stage.height,
-			z : Z_MODAL
-		}).hide(),
-
 		moneyIcon : new DGE.Text({
 			size : 30,
 			text : '$',
@@ -460,18 +448,26 @@ function initGameOver() {
 		z : Z_MODAL
 	});
 
-	sprites.gameOver.yourScore = new DGE.Text({
+	sprites.gameOver.message = new DGE.Text({
 		align : 'center',
 		parent : sprites.gameOver.dialog,
-		width : DGE.stage.width,
+		width : sprites.gameOver.dialog.width,
 		height : 30,
-		y : 120
+		y : 75
 	});
 
 	sprites.gameOver.highScore = new DGE.Text({
 		align : 'center',
 		parent : sprites.gameOver.dialog,
-		width : DGE.stage.width,
+		width : sprites.gameOver.dialog.width,
+		height : 30,
+		y : 120
+	});
+
+	sprites.gameOver.moneyCollected = new DGE.Text({
+		align : 'center',
+		parent : sprites.gameOver.dialog,
+		width : sprites.gameOver.dialog.width,
 		height : 30,
 		y : 145
 	});
@@ -479,7 +475,7 @@ function initGameOver() {
 	sprites.gameOver.movesUsed = new DGE.Text({
 		align : 'center',
 		parent : sprites.gameOver.dialog,
-		width : DGE.stage.width,
+		width : sprites.gameOver.dialog.width,
 		height : 30,
 		y : 170
 	});
@@ -495,13 +491,11 @@ function initGameOver() {
 		y : 239
 	}).on('click', function() {
 
+		newGame();
 		sprites.overlay.fade(0, DELAY_FADE);
-
 		sprites.gameOver.dialog.animate({
 			y : DGE.stage.height
-		}, DELAY_MODAL, {
-			complete : newGame
-		});
+		}, DELAY_MODAL);
 
 	});
 
@@ -1092,41 +1086,109 @@ function execMatches() {
  */
 function gameOver() {
 
-	// TODO wait is this right ...
-	var interval = new DGE.Interval({
-		interval : function() {
-		}
-	});
-
 	var values = {
 		money : 0,
-		highScore : 0,
 		movesUsed : 0
 	};
 
-	sprites.gameOver.yourScore.set('text', ('Your Score: ' + DGE.formatNumber(player.money)));
-	sprites.gameOver.highScore.set('text', ('High Score: ' + DGE.formatNumber(highScore)));
-	sprites.gameOver.movesUsed.set('text', ('Moves Used: ' + DGE.formatNumber(player.movesUsed)));
-
-	sprites.modal.set('opacity', 0);
-	sprites.overlay.plot(0, 0);
+	// First make sure everything is opacity 0.
 	sprites.overlay.set('opacity', 0);
+	sprites.gameOver.message.set('opacity', 0);
+	sprites.gameOver.highScore.set('opacity', 0);
+	sprites.gameOver.highScore.set('text', ('High Score: $' + DGE.formatNumber(highScore)));
+	sprites.gameOver.moneyCollected.hide().set('text', '$0');
+	sprites.gameOver.movesUsed.hide().set('text', 0);
+	sprites.gameOver.playAgain.set('opacity', 0);
 
-	sprites.modal.show();
+	// Show the overlay and fade it in.
 	sprites.overlay.show();
-
-	sprites.modal.fade(100, DELAY_FADE);
 	sprites.overlay.fade(90, DELAY_FADE, function() {
 
+		// Once the overlay is shown, slide up the Game Over modal.
 		sprites.gameOver.dialog.animate({
 			y : 10
 		}, DELAY_MODAL, {
 			complete : function() {
-				busy = false;
+
+				// Fade in high score.
+				sprites.gameOver.highScore.fade(100, 500, function() {
+
+					// Increment money collected.
+					sprites.gameOver.moneyCollected.show().on('ping', function() {
+
+						if (values.money < player.money) {
+							values.money += GAME_OVER_INCREMENT;
+						} else {
+
+							values.money = player.money;
+							this.stop();
+
+							// Next up show moves used.
+							sprites.gameOver.movesUsed.show().on('ping', function() {
+
+								if (values.movesUsed < player.movesUsed) {
+									values.movesUsed++;
+								} else {
+
+									this.stop();
+
+									// Now fade in the Play Again button.
+									sprites.gameOver.playAgain.fade(100, 500, function() {
+										busy = false;
+										sprites.gameOver.message
+											.set('text', getGameOverMessage())
+											.fade(100, 500);
+									});
+
+								}
+
+								this.set('text', ('Moves Used: ' + DGE.formatNumber(values.movesUsed)));
+
+							}).start();
+
+						}
+
+						this.set('text', ('Money Collected: $' + DGE.formatNumber(values.money)));
+
+					}).start();
+
+				});
+
 			}
 		});
 
 	});
+
+};
+
+/**
+ * Generates a Game Over message based on player's score and high score.
+ * @return {String} The message to display.
+ */
+function getGameOverMessage() {
+
+	if (player.money > highScore) {
+		return "Congrats, you beat your high score!";
+	} else if (player.money == highScore) {
+		return "Weird, you tied with your high score ...";
+	}
+
+	// Didn't beat or tie the high score. How far away?
+	var percentage = ((player.money / highScore) * 100);
+
+	if (percentage < 10) {
+		return "I hate to tell ya, but that was pretty sad.";
+	} else if (percentage < 50) {
+		return "Not even halfway there! You can do better.";
+	} else if (percentage == 50) {
+		return "Halfway there!";
+	} else if (percentage < 75) {
+		return "Pretty good, try again!";
+	} else if (percentage < 80) {
+		return "Almost beat your high score!";
+	} else {
+		return DGE.sprintf("Whoa, %s% of the way there. Try again!", percentage);
+	}
 
 };
 
@@ -1332,6 +1394,7 @@ match3.setPieces([
 */
 
 	resetBoard();
+
 	sprites.cursor.stop().hide();
 	sprites.levelMeter.set('width', 0);
 	sprites.levelText.set('text', DGE.sprintf('Level %s', player.level));
@@ -1339,7 +1402,6 @@ match3.setPieces([
 	sprites.bombsText.set('text', player.numBombs);
 	sprites.movesText.set('text', player.numMoves);
 
-	sprites.modal.hide();
 	sprites.overlay.hide();
 
 };
@@ -1388,38 +1450,9 @@ function setBoard() {
 				}
 			}
 
-/*
-if (pieces[y][x] === undefined) {
-
-	found = {
-		x : x,
-		y : y
-	};
-
-}
-*/
-
 		}
 
 	}
-
-/*
-	if (found) {
-
-		DGE.log('2. WHOA COULD NOT FIND at:', x, y);
-
-		for (var i = 0; i < children.length; i++) {
-			if (children[i].isAt((PIECE_SIZE * x), (PIECE_SIZE * y))) {
-				DGE.log('3.x. FOUND: ', children[i]);
-			} else {
-				DGE.log('3.x. not at index: ', i);
-			}
-		}
-
-		DGE.log('[done]');
-
-	}
-*/
 
 	return pieces;
 
@@ -1833,7 +1866,7 @@ DGE.Keyboard.code([38, 38, 40, 40, 37, 39, 37, 39, 66, 65], (function() {
 	return function() {
 
 		if (used) {
-			showNotice('Already used', COLOR_ERROR);
+			showNotice('Cheat already used', COLOR_ERROR);
 		} else if (player.numMoves == 1) {
 			player.numMoves++;
 			used = true;
