@@ -415,7 +415,7 @@ function init() {
 		version : new DGE.Text({
 			color : COLOR_DEFAULT,
 			size : 8,
-			text : 'v0.8',
+			text : 'v0.9',
 			x : 145,
 			y : 55
 		})
