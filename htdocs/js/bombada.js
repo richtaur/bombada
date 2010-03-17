@@ -1,5 +1,6 @@
 // TODO: test in IE (I'm sure it's broken as balls)
 // TODO: show a hint after X seconds of no activity
+// TODO: feature? Back from the dead bonus (when you have 0 moves and earn another move, get +1 move)
 // TODO: OPTIMIZE! make everything a single SpriteSheet (do this VERY LAST)
 
 (function() {
@@ -967,6 +968,7 @@ function execMatches() {
 	showCascades();
 
 	var matches = match3.getMatches();
+DGE.log(matches);
 	var pieces = match3.getPieces();
 	var toMove = {};
 
@@ -1350,49 +1352,6 @@ function newGame() {
 
 	match3.reset();
 	showMode();
-
-// DEBUG: This is a single-move board.
-/*
-match3.setPieces([
-[0,4,1,1,5,6,3,6],
-[3,5,5,2,6,0,6,5],
-[1,0,2,6,1,3,1,2],
-[4,4,0,5,5,0,6,5],
-[6,6,1,3,1,6,2,2],
-[6,2,4,3,5,4,2,0],
-[4,5,4,0,2,5,3,4],
-[3,3,6,0,1,4,6,3],
-]);
-*/
-
-// DEBUG: This is a board with a cascade move available.
-/*
-match3.setPieces([
-[3,1,3,0,1,2,3,5],
-[3,1,4,1,3,1,3,2],
-[4,4,6,1,4,1,6,1],
-[3,6,6,3,0,0,3,6],
-[5,5,0,0,3,2,3,5],
-[4,2,2,6,4,0,6,0],
-[4,0,0,6,1,4,4,3],
-[1,0,2,2,3,6,4,0],
-]);
-*/
-
-// DEBUG: This is a board with 4+-of-a-kinds available.
-/*
-match3.setPieces([
-[1,4,2,5,2,3,2,1],
-[0,3,1,1,2,5,3,0],
-[0,3,6,5,5,3,3,0],
-[1,2,3,6,1,3,1,5],
-[3,3,1,0,2,1,3,6],
-[1,0,2,5,0,0,3,5],
-[1,0,1,0,6,6,5,1],
-[2,6,4,0,1,6,3,2],
-]);
-*/
-
 	resetBoard();
 
 	sprites.cursor.stop().hide();
@@ -1881,6 +1840,7 @@ DGE.Keyboard.code([38, 38, 40, 40, 37, 39, 37, 39, 66, 65], (function() {
 })());
 
 // DEBUG
+/*
 sprites.version.on('click', boardDump);
 
 function boardDump() {
@@ -1911,6 +1871,7 @@ sprites.movesText.on('click', function() {
 	DGE.log('[getPossibleMatches]');
 	DGE.log(match3.getPossibleMatches());
 });
+*/
 // /DEBUG
 
 })();
