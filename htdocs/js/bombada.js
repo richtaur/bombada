@@ -204,6 +204,7 @@ function init() {
 			y : 2,
 			z : Z_UI
 		}).on('click', function() {
+			player.selected = {};
 			this.hide();
 		}).on('ping', function() {
 
@@ -428,7 +429,7 @@ function init() {
 	newGame();
 
 	if (DGE.Data.get('playMusic')) audio.music.play();
-	//if (!DGE.Data.get('shownHowToPlay')) showHowToPlay();
+	if (!DGE.Data.get('shownHowToPlay')) showHowToPlay();
 
 };
 
@@ -954,7 +955,7 @@ function dropPieces() {
 	});
 
 	for (var i = 0; i < queue.moving.length; i++) {
-		queue.moving[i].set('moving', true).start();
+		queue.moving[i].start();
 	}
 
 };
@@ -1134,12 +1135,14 @@ function gameOver() {
 
 									this.stop();
 
+									// Show a congratulatory or defamatory message!
+									sprites.gameOver.message
+										.set('text', getGameOverMessage())
+										.fade(100, 500);
+
 									// Now fade in the Play Again button.
 									sprites.gameOver.playAgain.fade(100, 500, function() {
 										busy = false;
-										sprites.gameOver.message
-											.set('text', getGameOverMessage())
-											.fade(100, 500);
 									});
 
 								}
@@ -1324,7 +1327,6 @@ function newBoard() {
 			.set('angle', 270)
 			.set('frame', 0)
 			.set('framesMax', FRAMES_FALLING)
-			.set('moving', true)
 			.start();
 
 	}
@@ -1360,8 +1362,6 @@ function newGame() {
 	sprites.moneyText.set('text', player.money);
 	sprites.bombsText.set('text', player.numBombs);
 	sprites.movesText.set('text', player.numMoves);
-
-	sprites.overlay.hide();
 
 };
 
