@@ -88,10 +88,11 @@ function init() {
 
 	DGE.init({
 		id : 'bombada',
+		background : '#000',
 		image : assets.background,
 		width : 480,
 		height : 320
-	}).fill('#000').on('mouseUp', function() {
+	}).on('mouseUp', function() {
 		dragging = false;
 	});
 
@@ -245,6 +246,7 @@ function init() {
 
 		howToPlay : new DGE.Text({
 			autoAdjust : 'height',
+			background : COLOR_ERROR,
 			cursor : true,
 			opacity : 90,
 			size : 12,
@@ -252,7 +254,6 @@ function init() {
 			height : 200,
 			z : Z_MAX
 		})
-			.fill(COLOR_ERROR)
 			.hide()
 			.setCSS('border-radius', '6px')
 			.setCSS('box-shadow', '5px 5px 10px #000')
@@ -399,10 +400,11 @@ function init() {
 			.start(),
 
 		overlay : new DGE.Sprite({
+			background : '#000',
 			width : DGE.stage.width,
 			height : DGE.stage.height,
 			z : Z_OVERLAY
-		}).fill('#000').hide(),
+		}).hide(),
 
 		settingsIcon : new DGE.Sprite({
 			cursor : true,
