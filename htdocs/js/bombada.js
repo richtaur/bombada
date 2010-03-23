@@ -1,6 +1,7 @@
+// TODO: redo audio in flash (sigh)
+// TODO: get working in Titanium (sigh)
 // TODO: test in IE (I'm sure it's broken as balls)
 // TODO: show a hint after X seconds of no activity
-// TODO: feature? Back from the dead bonus (when you have 0 moves and earn another move, get +1 move)
 // TODO: OPTIMIZE! make everything a single SpriteSheet (do this VERY LAST)
 
 (function() {
@@ -86,16 +87,6 @@ var sprites;
  */
 function init() {
 
-	DGE.init({
-		id : 'bombada',
-		background : '#000',
-		image : assets.background,
-		width : 480,
-		height : 320
-	}).on('mouseUp', function() {
-		dragging = false;
-	});
-
 	highScore = DGE.Data.get('highScore');
 	if (!highScore) highScore = 10000;
 	DGE.Data.set('highScore', highScore);
@@ -112,28 +103,48 @@ function init() {
 
 	audio = {
 		explosion : new DGE.Audio({
-			file : 'audio/sound_effects/drop_bomb.ogg'
+			id : 'explosion',
+			file : 'audio/explosion.mp3'
 		}),
 		invalidMove : new DGE.Audio({
-			file : 'audio/sound_effects/invalid_move.ogg'
+			id : 'invalidMove',
+			file : 'audio/invalid_move.mp3'
 		}),
 		modeSwitch : new DGE.Audio({
-			file : 'audio/sound_effects/enter_exit_bomb_mode.ogg'
+			id : 'modeSwitch',
+			file : 'audio/mode_switch.mp3'
 		}),
 		movePiece : new DGE.Audio({
-			file : 'audio/sound_effects/piece_move.ogg'
+			id : 'movePiece',
+			file : 'audio/move_piece.mp3'
 		}),
 		music : new DGE.Audio({
-			file : 'audio/sly.ogg'
+			id : 'music',
+			file : 'audio/music.mp3'
 		}),
 		noBombs : new DGE.Audio({
-			file : 'audio/sound_effects/no_bombs.ogg'
+			id : 'noBombs',
+			file : 'audio/no_bombs.mp3'
 		}),
 		noMoves : new DGE.Audio({
-			file : 'audio/sound_effects/no_moves_left.ogg'
+			id : 'noMoves',
+			file : 'audio/no_moves.mp3'
 		}),
 		selectPiece : new DGE.Audio({
-			file : 'audio/sound_effects/piece_select.ogg'
+			id : 'selectPiece',
+			file : 'audio/select_piece.mp3'
+		}),
+		settingsOpen : new DGE.Audio({
+			id : 'selectPiece',
+			file : 'audio/settings_open.mp3'
+		}),
+		settingsClose : new DGE.Audio({
+			id : 'selectPiece',
+			file : 'audio/settings_close.mp3'
+		}),
+		settingsToggle : new DGE.Audio({
+			id : 'selectPiece',
+			file : 'audio/settings_toggle.mp3'
 		})
 	};
 
@@ -419,7 +430,7 @@ function init() {
 		version : new DGE.Text({
 			color : COLOR_DEFAULT,
 			size : 8,
-			text : 'v0.9',
+			text : 'v0.81',
 			x : 145,
 			y : 55
 		})
@@ -430,7 +441,7 @@ function init() {
 	initSettings();
 	newGame();
 
-	if (DGE.Data.get('playMusic')) audio.music.play();
+	//if (DGE.Data.get('playMusic')) audio.music.play();
 	if (!DGE.Data.get('shownHowToPlay')) showHowToPlay();
 
 };
@@ -513,6 +524,8 @@ function initSettings() {
 
 	function clickHowToPlay() {
 
+		playSound('settingsToggle');
+
 		if (DGE.Data.get('shownHowToPlay')) {
 			checkHowToPlay.set('image', assets.check);
 			textHowToPlay.set('opacity', 100);
@@ -526,6 +539,8 @@ function initSettings() {
 	};
 
 	function clickPlayMusic() {
+
+		playSound('settingsToggle');
 
 		if (DGE.Data.get('playMusic')) {
 			audio.music.stop();
@@ -542,6 +557,8 @@ function initSettings() {
 	};
 
 	function clickPlaySFX() {
+
+		playSound('settingsToggle');
 
 		if (DGE.Data.get('playSFX')) {
 			checkPlaySFX.set('image', assets.checkGrey);
@@ -729,7 +746,7 @@ function clickPiece(pieceX, pieceY) {
 	// We're all done if this was just a selection.
 	if (!match3.isAdjacent(selectedPieceX, selectedPieceY, pieceX, pieceY)) {
 		dragging = true;
-		if (DGE.Data.get('playSFX')) audio.selectPiece.play();
+		playSound('selectPiece');
 		return;
 	}
 
@@ -737,7 +754,7 @@ function clickPiece(pieceX, pieceY) {
 	busy = true;
 	var pieceCursor = getPieceByPieceXY(selectedPieceX, selectedPieceY);
 
-	if (DGE.Data.get('playSFX')) audio.movePiece.play();
+	playSound('movePiece');
 
 	queue.on('change:numActive', null);
 	queue.set('numActive', 2);
@@ -755,7 +772,7 @@ function clickPiece(pieceX, pieceY) {
 			execMatches();
 		} else {
 
-			if (DGE.Data.get('playSFX')) audio.invalidMove.play();
+			playSound('invalidMove');
 			match3.swapPieces(pieceX, pieceY, selectedPieceX, selectedPieceY);
 			showNotice('Invalid move', COLOR_ERROR, function() {
 				busy = false;
@@ -851,7 +868,7 @@ function dropBomb(pieceX, pieceY) {
 		.show()
 		.start();
 
-	if (DGE.Data.get('playSFX')) audio.explosion.play();
+	playSound('explosion');
 	piece.remove();
 	execMatches();
 
@@ -1368,6 +1385,14 @@ function newGame() {
 };
 
 /**
+ * Plays a sound if sound effects are enabled.
+ * @method playSound
+ */
+function playSound(sound) {
+	if (DGE.Data.get('playSFX')) audio[sound].play();
+};
+
+/**
  * Sets up the board, including removing any old sprites.
  * @method resetBoard
  */
@@ -1737,7 +1762,7 @@ function toggleMode() {
 		if (!player.numMoves) {
 			showNotice('No moves left', COLOR_ERROR);
 		} else {
-			if (DGE.Data.get('playSFX')) audio.modeSwitch.play();
+			playSound('modeSwitch');
 			player.mode = MODE_MOVE;
 			showMode();
 		}
@@ -1746,9 +1771,9 @@ function toggleMode() {
 
 		if (!player.numBombs) {
 			showNotice('You have no bombs', COLOR_ERROR);
-			if (DGE.Data.get('playSFX')) audio.noBombs.play();
+			playSound('noBombs');
 		} else {
-			if (DGE.Data.get('playSFX')) audio.modeSwitch.play();
+			playSound('modeSwitch');
 			player.mode = MODE_BOMB;
 			showMode();
 		}
@@ -1769,6 +1794,8 @@ function toggleSettings() {
 
 	if (screen == 'settings') {
 
+		playSound('settingsClose');
+
 		sprites.overlay.animate({
 			opacity : 0
 		}, DELAY_MODAL);
@@ -1788,6 +1815,8 @@ function toggleSettings() {
 		});
 
 	} else {
+
+		playSound('settingsOpen');
 
 		sprites.overlay.set('opacity', 0).show().animate({
 			opacity : 90
@@ -1810,7 +1839,15 @@ function toggleSettings() {
 
 };
 
-init();
+DGE.init({
+	id : 'bombada',
+	background : '#000',
+	image : assets.background,
+	width : 480,
+	height : 320
+}, init).on('mouseUp', function() {
+	dragging = false;
+});
 
 // Easter Egg (Konami Code).
 DGE.Keyboard.code([38, 38, 40, 40, 37, 39, 37, 39, 66, 65], (function() {
