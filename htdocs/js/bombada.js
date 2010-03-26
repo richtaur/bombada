@@ -1,6 +1,5 @@
-// TODO: redo audio in flash (sigh)
 // TODO: get working in Titanium (sigh)
-// TODO: test in IE (I'm sure it's broken as balls)
+// TODO: cross-browser support (Chrome, Firefox, IE, Safari)
 // TODO: show a hint after X seconds of no activity
 // TODO: OPTIMIZE! make everything a single SpriteSheet (do this VERY LAST)
 
@@ -98,37 +97,60 @@ function init() {
 	DGE.Text.defaults.height = 30;
 
 	match3.set('getNewPiece', getNewPiece);
-
 	new DGE.Loader([assets]);
 
 	audio = {
+		boardReset : new DGE.Audio({
+			id : 'boardReset',
+			file : 'audio/board_reset.mp3'
+		}),
+		bombsIncrease : new DGE.Audio({
+			id : 'bombsIncrease',
+			file : 'audio/bombs_increase.mp3'
+		}),
+		cascade : new DGE.Audio({
+			id : 'cascade',
+			file : 'audio/cascade.mp3'
+		}),
+		error : new DGE.Audio({
+			id : 'error',
+			file : 'audio/error.mp3'
+		}),
 		explosion : new DGE.Audio({
 			id : 'explosion',
 			file : 'audio/explosion.mp3'
+		}),
+		extraMove : new DGE.Audio({
+			id : 'extraMove',
+			file : 'audio/extra_move.mp3'
 		}),
 		invalidMove : new DGE.Audio({
 			id : 'invalidMove',
 			file : 'audio/invalid_move.mp3'
 		}),
+		levelUp : new DGE.Audio({
+			id : 'levelUp',
+			file : 'audio/level_up.mp3'
+		}),
 		modeSwitch : new DGE.Audio({
 			id : 'modeSwitch',
 			file : 'audio/mode_switch.mp3'
+		}),
+		moneyIncrease : new DGE.Audio({
+			id : 'moneyIncrease',
+			file : 'audio/money_increase.mp3'
 		}),
 		movePiece : new DGE.Audio({
 			id : 'movePiece',
 			file : 'audio/move_piece.mp3'
 		}),
+		movesIncrease : new DGE.Audio({
+			id : 'movesIncrease',
+			file : 'audio/moves_increase.mp3'
+		}),
 		music : new DGE.Audio({
 			id : 'music',
 			file : 'audio/music.mp3'
-		}),
-		noBombs : new DGE.Audio({
-			id : 'noBombs',
-			file : 'audio/no_bombs.mp3'
-		}),
-		noMoves : new DGE.Audio({
-			id : 'noMoves',
-			file : 'audio/no_moves.mp3'
 		}),
 		selectPiece : new DGE.Audio({
 			id : 'selectPiece',
@@ -192,6 +214,7 @@ function init() {
 			if (player.numBombsDisplay == player.numBombs) return;
 
 			if (player.numBombsDisplay < player.numBombs) {
+				playSound('bombsIncrease');
 				player.numBombsDisplay++;
 			} else if (player.numBombsDisplay > player.numBombs) {
 				player.numBombsDisplay--;
@@ -298,6 +321,7 @@ function init() {
 				player.level++;
 				player.levelProgress -= goal;
 
+				playSound('levelUp');
 				showNotice('Level up!', COLOR_DEFAULT);
 				sprites.levelText.set('text', DGE.sprintf('Level %s', player.level));
 				this.set('width', 0);
@@ -341,6 +365,7 @@ function init() {
 			if (player.moneyDisplay == player.money) return;
 
 			if (player.moneyDisplay < player.money) {
+				playSound('moneyIncrease');
 				player.moneyDisplay += MONEY_INCREMENT;
 			}
 
@@ -398,6 +423,7 @@ function init() {
 			if (player.numMovesDisplay == player.numMoves) return;
 
 			if (player.numMovesDisplay < player.numMoves) {
+				playSound('movesIncrease');
 				player.numMovesDisplay++;
 			} else if (player.numMovesDisplay > player.numMoves) {
 				player.numMovesDisplay--;
@@ -441,7 +467,7 @@ function init() {
 	initSettings();
 	newGame();
 
-	//if (DGE.Data.get('playMusic')) audio.music.play();
+	if (DGE.Data.get('playMusic')) audio.music.play();
 	if (!DGE.Data.get('shownHowToPlay')) showHowToPlay();
 
 };
@@ -988,7 +1014,6 @@ function execMatches() {
 	showCascades();
 
 	var matches = match3.getMatches();
-DGE.log(matches);
 	var pieces = match3.getPieces();
 	var toMove = {};
 
@@ -1316,6 +1341,7 @@ function newBoard() {
 	var numPieces = (PIECES_X * PIECES_Y);
 	var pieces = match3.getPieces();
 
+	playSound('boardReset');
 	showNotice('No moves', COLOR_ERROR);
 
 	function ping() {
@@ -1456,6 +1482,8 @@ function showCascades() {
 	var message = '';
 	var switch1 = (DGE.rand(0, 1) == 0);
 	var switch2 = (DGE.rand(0, 1) == 0);
+
+	playSound('cascade');
 
 	if (switch1) {
 		if (player.cascade == 3) {
@@ -1739,6 +1767,7 @@ function showOfAKind(length) {
 		COLOR_DEFAULT
 	);
 
+	playSound('extraMove');
 	player.numMoves += movesGained;
 	var message = ((movesGained == 1) ? '%s extra move' : '%s extra moves!');
 
@@ -1760,6 +1789,7 @@ function toggleMode() {
 	if (player.mode == MODE_BOMB) {
 
 		if (!player.numMoves) {
+			playSound('error');
 			showNotice('No moves left', COLOR_ERROR);
 		} else {
 			playSound('modeSwitch');
@@ -1771,7 +1801,7 @@ function toggleMode() {
 
 		if (!player.numBombs) {
 			showNotice('You have no bombs', COLOR_ERROR);
-			playSound('noBombs');
+			playSound('error');
 		} else {
 			playSound('modeSwitch');
 			player.mode = MODE_BOMB;
