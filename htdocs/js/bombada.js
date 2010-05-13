@@ -1,7 +1,15 @@
-// TODO: get working in Titanium (sigh)
-// TODO: cross-browser support (Chrome, Firefox, IE, Safari)
-// TODO: show a hint after X seconds of no activity
-// TODO: OPTIMIZE! make everything a single SpriteSheet (do this VERY LAST)
+/*
+	TODO: cross-browser support?
+	+ Chrome
+	+ Firefox
+	- IE :(
+	- Safari
+	- Opera
+*/
+
+// todo: get working in Titanium (sigh)
+// todo: show a hint after X seconds of no activity
+// todo: OPTIMIZE! make everything a single SpriteSheet (do this VERY LAST)
 
 (function() {
 
@@ -45,21 +53,29 @@ var Z_MOVING = 3; // Moving, so above the other pieces to prevent visual clutter
 var Z_PIECE = 2; // Just above the background.
 
 var assets = {
-	background : 'gfx/480x320/bg.png',
-	backgroundBomb : 'gfx/480x320/bg_bomb.png',
-	check : 'gfx/480x320/check.png',
-	checkGrey : 'gfx/480x320/check_grey.png',
-	cursor : 'gfx/480x320/cursor.png',
-	dialogCredits : 'gfx/480x320/credits.png',
-	dialogGameOver : 'gfx/480x320/game_over.png',
-	dialogSettings : 'gfx/480x320/settings.png',
-	done : 'gfx/480x320/done.png',
-	howToPlayArrow : 'gfx/480x320/htp_arrow.png',
-	levelMeter : 'gfx/480x320/level_meter.png',
-	iconBomb : 'gfx/480x320/icon_bomb.png',
-	iconBombGlow : 'gfx/480x320/icon_bomb_glow.png',
-	playAgain : 'gfx/480x320/play_again.png',
-	settings : 'gfx/480x320/icon_settings.png'
+	background : 'gfx/bg.png',
+	backgroundBomb : 'gfx/bg_bomb.png',
+	check : 'gfx/check.png',
+	checkGrey : 'gfx/check_grey.png',
+	cursor : 'gfx/cursor.png',
+	dialogCredits : 'gfx/credits.png',
+	dialogGameOver : 'gfx/game_over.png',
+	dialogSettings : 'gfx/settings.png',
+	done : 'gfx/done.png',
+	explosions : 'gfx/explosions.png',
+	howToPlayArrow : 'gfx/htp_arrow.png',
+	levelMeter : 'gfx/level_meter.png',
+	iconBomb : 'gfx/icon_bomb.png',
+	iconBombGlow : 'gfx/icon_bomb_glow.png',
+	pieceClockDark : 'gfx/piece_clock_dark.png',
+	pieceBombDark : 'gfx/piece_bomb_dark.png',
+	pieceDiamondDark : 'gfx/piece_diamond_dark.png',
+	pieceMoneyDark : 'gfx/piece_money_dark.png',
+	pieceCoinDark : 'gfx/piece_coin_dark.png',
+	pieceCrateDark : 'gfx/piece_crate_dark.png',
+	pieceBarrelDark : 'gfx/piece_barrel_dark.png',
+	playAgain : 'gfx/play_again.png',
+	settings : 'gfx/icon_settings.png'
 };
 var audio;
 var busy;
@@ -67,13 +83,13 @@ var dragging;
 var explosionSheet;
 var highScore;
 var pieceTypes = [
-	'gfx/480x320/piece_clock.png',
-	'gfx/480x320/piece_bomb.png',
-	'gfx/480x320/piece_diamond.png',
-	'gfx/480x320/piece_money.png',
-	'gfx/480x320/piece_coin.png',
-	'gfx/480x320/piece_crate.png',
-	'gfx/480x320/piece_barrel.png'
+	'gfx/piece_clock.png',
+	'gfx/piece_bomb.png',
+	'gfx/piece_diamond.png',
+	'gfx/piece_money.png',
+	'gfx/piece_coin.png',
+	'gfx/piece_crate.png',
+	'gfx/piece_barrel.png'
 ];
 var player = {};
 var queue = new DGE.Object();
@@ -86,18 +102,19 @@ var sprites;
  */
 function init() {
 
+	DGE.stage.set('image', assets.background);
+
 	highScore = DGE.Data.get('highScore');
 	if (!highScore) highScore = 10000;
 	DGE.Data.set('highScore', highScore);
 
 	DGE.Text.defaults.color = COLOR_DEFAULT;
-	DGE.Text.defaults.font = 'Lucida Grande, Helvetica, Sans-Serif';
+	DGE.Text.defaults.font = 'Lucida Grande, Helvetica';
 	DGE.Text.defaults.shadow = '2px 2px 2px #000';
 	DGE.Text.defaults.size = 20;
 	DGE.Text.defaults.height = 30;
 
 	match3.set('getNewPiece', getNewPiece);
-	new DGE.Loader([assets]);
 
 	audio = {
 		boardReset : new DGE.Audio({
@@ -171,7 +188,7 @@ function init() {
 	};
 
 	explosionSheet = new DGE.Sprite.Sheet({
-		image : 'gfx/480x320/explosions.png',
+		image : assets.explosions,
 		spriteWidth : 48,
 		spriteHeight : 48,
 		width : 240,
@@ -391,7 +408,7 @@ function init() {
 		movesText : new DGE.Text({
 			align : 'center',
 			delay : 100,
-			font : 'Helvetica, Sans-Serif',
+			font : 'Helvetica',
 			size : 64,
 			width : 170,
 			height : 64,
@@ -456,7 +473,7 @@ function init() {
 		version : new DGE.Text({
 			color : COLOR_DEFAULT,
 			size : 8,
-			text : 'v0.81',
+			text : 'v0.82',
 			x : 145,
 			y : 55
 		})
@@ -540,6 +557,22 @@ function initGameOver() {
 
 	});
 
+};
+
+/**
+ * Initializes the loader to fetch static assets.
+ * @method initLoader
+ */
+function initLoader() {
+	new DGE.Loader([assets, pieceTypes], {
+		change : function(percentage) {
+			loading.set('text', (percentage + '%'));
+		},
+		complete : function() {
+			loading.remove();
+			init();
+		}
+	});
 };
 
 /**
@@ -1080,7 +1113,7 @@ function execMatches() {
 				piece.set('angle', piece.getAngleTo(sprites.movesText.getCenter()));
 				piece.on('ping', function() {
 
-					if (!this.get('active')) return;
+					if (this.get('fading')) return;
 
 					this.offset('rotation', -20);
 
@@ -1088,7 +1121,7 @@ function execMatches() {
 
 						player.numMoves++;
 						queue.offset('numActive', -1);
-						this.set('active', false);
+						this.set('fading', true);
 
 						this.fade(0, 100, function() {
 							this.remove();
@@ -1872,17 +1905,32 @@ function toggleSettings() {
 DGE.init({
 	id : 'bombada',
 	background : '#000',
-	image : assets.background,
 	width : 480,
 	height : 320
-}, init).on('mouseUp', function() {
+}).on('mouseUp', function() {
 	dragging = false;
+});
+
+var loading = new DGE.Text({
+	align : 'center',
+	color : COLOR_DEFAULT,
+	text : 'Loading audio ...',
+	width : DGE.stage.width,
+	y : (DGE.stage.height / 2)
+});
+
+DGE.Audio.init({
+	complete : initLoader,
+	error : function() {
+		loading.text("Sorry, couldn't load audio.");
+		setTimeout(initLoader, 1500);
+	}
 });
 
 // Easter Egg (Konami Code).
 DGE.Keyboard.code([38, 38, 40, 40, 37, 39, 37, 39, 66, 65], (function() {
 
-	// TODO?:
+	// todo? make a more interesting konami code:
 	// - number of times played
 	// - number of moves
 	// - total number of bombs dropped
