@@ -1,13 +1,3 @@
-/*
-	TODO: cross-browser support?
-	+ Chrome
-	+ Firefox
-	- IE :(
-	- Safari
-	- Opera
-*/
-
-// todo: get working in Titanium (sigh)
 // todo: show a hint after X seconds of no activity
 // todo: OPTIMIZE! make everything a single SpriteSheet (do this VERY LAST)
 
@@ -18,7 +8,7 @@ var match3 = exports.match3;
 // Constants (kinda).
 var COLOR_ERROR = '#D60000';
 var COLOR_DEFAULT = '#FFF';
-var DEFAULT_NUM_MOVES = 10;
+var DEFAULT_NUM_MOVES = 5;
 var DELAY_ERROR = 100;
 var DELAY_FADE = 500;
 var DELAY_MODAL = 250;
@@ -1991,4 +1981,4 @@ sprites.movesText.on('click', function() {
 */
 // /DEBUG
 
-})();
+})(); // Let's take this rap on back to '84 ...
