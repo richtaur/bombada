@@ -1,7 +1,7 @@
 # Bombada
 
 Bombada is a simple match-3 game written in JavaScript using the Diggy game engine.
-Diggy can be found here: http://github.com/richtaur/diggyjs
+Diggy can be found here: http://github.com/richtaur/diggy
 Development on this game is done; it's as far along as it'll ever be.
 
 ## Known issues

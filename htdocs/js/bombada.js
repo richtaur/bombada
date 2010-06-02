@@ -8,6 +8,7 @@ var match3 = exports.match3;
 // Constants (kinda).
 var COLOR_ERROR = '#D60000';
 var COLOR_DEFAULT = '#FFF';
+var DEFAULT_NUM_BOMBS = 0;
 var DEFAULT_NUM_MOVES = 5;
 var DELAY_ERROR = 100;
 var DELAY_FADE = 500;
@@ -43,29 +44,28 @@ var Z_MOVING = 3; // Moving, so above the other pieces to prevent visual clutter
 var Z_PIECE = 2; // Just above the background.
 
 var assets = {
-	background : 'gfx/bg.png',
-	backgroundBomb : 'gfx/bg_bomb.png',
-	check : 'gfx/check.png',
-	checkGrey : 'gfx/check_grey.png',
-	cursor : 'gfx/cursor.png',
-	dialogCredits : 'gfx/credits.png',
-	dialogGameOver : 'gfx/game_over.png',
-	dialogSettings : 'gfx/settings.png',
-	done : 'gfx/done.png',
-	explosions : 'gfx/explosions.png',
-	howToPlayArrow : 'gfx/htp_arrow.png',
-	levelMeter : 'gfx/level_meter.png',
-	iconBomb : 'gfx/icon_bomb.png',
-	iconBombGlow : 'gfx/icon_bomb_glow.png',
-	pieceClockDark : 'gfx/piece_clock_dark.png',
-	pieceBombDark : 'gfx/piece_bomb_dark.png',
-	pieceDiamondDark : 'gfx/piece_diamond_dark.png',
-	pieceMoneyDark : 'gfx/piece_money_dark.png',
-	pieceCoinDark : 'gfx/piece_coin_dark.png',
-	pieceCrateDark : 'gfx/piece_crate_dark.png',
-	pieceBarrelDark : 'gfx/piece_barrel_dark.png',
-	playAgain : 'gfx/play_again.png',
-	settings : 'gfx/icon_settings.png'
+	background : 'images/bg.png',
+	backgroundBomb : 'images/bg_bomb.png',
+	check : 'images/check.png',
+	checkGrey : 'images/check_grey.png',
+	cursor : 'images/cursor.png',
+	dialogCredits : 'images/credits.png',
+	dialogGameOver : 'images/game_over.png',
+	dialogSettings : 'images/settings.png',
+	done : 'images/done.png',
+	explosions : 'images/explosions.png',
+	howToPlayArrow : 'images/tips_arrow.png',
+	levelMeter : 'images/level_meter.png',
+	iconBomb : 'images/icon_bomb.png',
+	iconBombGlow : 'images/icon_bomb_glow.png',
+	//pieceClockDark : 'images/piece_clock_dark.png',
+	//pieceBombDark : 'images/piece_bomb_dark.png',
+	//pieceDiamondDark : 'images/piece_diamond_dark.png',
+	//pieceMoneyDark : 'images/piece_money_dark.png',
+	//pieceCrateDark : 'images/piece_crate_dark.png',
+	//pieceBarrelDark : 'images/piece_barrel_dark.png',
+	playAgain : 'images/play_again.png',
+	settings : 'images/icon_settings.png'
 };
 var audio;
 var busy;
@@ -73,13 +73,13 @@ var dragging;
 var explosionSheet;
 var highScore;
 var pieceTypes = [
-	'gfx/piece_clock.png',
-	'gfx/piece_bomb.png',
-	'gfx/piece_diamond.png',
-	'gfx/piece_money.png',
-	'gfx/piece_coin.png',
-	'gfx/piece_crate.png',
-	'gfx/piece_barrel.png'
+	'images/piece_clock.png',
+	'images/piece_bomb.png',
+	'images/piece_diamond.png',
+	'images/piece_dollar.png',
+	'images/piece_coin.png',
+	'images/piece_crate.png',
+	'images/piece_barrel.png'
 ];
 var player = {};
 var queue = new DGE.Object();
@@ -181,10 +181,10 @@ function init() {
 		image : assets.explosions,
 		spriteWidth : 48,
 		spriteHeight : 48,
-		width : 240,
+		width : 237,
 		height : 48,
-		x : 24,
-		y : 56
+		x : 0,
+		y : 0
 	});
 
 	sprites = {
@@ -200,10 +200,10 @@ function init() {
 		bombsIcon : new DGE.Sprite({
 			cursor : true,
 			image : assets.iconBomb,
-			width : 46,
-			height : 47,
+			width : 42,
+			height : 43,
 			x : 8,
-			y : 150
+			y : 154
 		}).on('click', toggleMode),
 
 		bombsText : new DGE.Text({
@@ -240,8 +240,8 @@ function init() {
 		cursor : new DGE.Sprite({
 			cursor : true,
 			image : assets.cursor,
-			width : 54,
-			height : 54,
+			width : 53,
+			height : 53,
 			x : 53,
 			y : 2,
 			z : Z_UI
@@ -403,7 +403,7 @@ function init() {
 			width : 170,
 			height : 64,
 			x : 0,
-			y : 192,
+			y : 198,
 			z : Z_UI
 		}).on('ping', function() {
 
@@ -440,7 +440,7 @@ function init() {
 
 		})
 			.set('resetX', 0)
-			.set('resetY', 192)
+			.set('resetY', 198)
 			.start(),
 
 		overlay : new DGE.Sprite({
@@ -453,19 +453,20 @@ function init() {
 		settingsIcon : new DGE.Sprite({
 			cursor : true,
 			image : assets.settings,
-			width : 36,
-			height : 36,
+			width : 47,
+			height : 47,
 			x : 3,
-			y : 280,
+			y : 273,
 			z : Z_UI
 		}).on('click', toggleSettings),
 
 		version : new DGE.Text({
 			color : COLOR_DEFAULT,
 			size : 8,
-			text : 'v0.82',
-			x : 145,
-			y : 55
+			text : 'v0.91',
+			width : 30,
+			x : 140,
+			y : 45
 		})
 
 	};
@@ -489,10 +490,10 @@ function initGameOver() {
 
 	sprites.gameOver.dialog = new DGE.Sprite({
 		image : assets.dialogGameOver,
-		width : 460,
-		height : 300,
-		x : 10,
-		y : DGE.stage.height,
+		width : 440,
+		height : 280,
+		x : 20,
+		y : (DGE.stage.height + 10),
 		z : Z_MODAL
 	});
 
@@ -533,10 +534,10 @@ function initGameOver() {
 		cursor : true,
 		image : assets.playAgain,
 		parent : sprites.gameOver.dialog,
-		width : 302,
+		width : 173,
 		height : 48,
-		x : 88,
-		y : 239
+		x : 134,
+		y : 219
 	}).on('click', function() {
 
 		newGame();
@@ -625,17 +626,17 @@ function initSettings() {
 
 		dialogSettings : new DGE.Sprite({
 			image : assets.dialogSettings,
-			width : 224,
-			height : 300,
-			x : -224,
+			width : 219,
+			height : 280,
+			x : -219,
 			y : 10,
 			z : Z_MODAL
 		}),
 
 		dialogCredits :	new DGE.Sprite({
 			image : assets.dialogCredits,
-			width : 224,
-			height : 300,
+			width : 219,
+			height : 280,
 			x : DGE.stage.width,
 			y : 10,
 			z : Z_MODAL
@@ -660,7 +661,7 @@ function initSettings() {
 		cursor : true,
 		image : (DGE.Data.get('shownHowToPlay') ? assets.checkGrey : assets.check),
 		parent : sprites.settings.dialogSettings,
-		width : 36,
+		width : 32,
 		height : 36,
 		x : 12,
 		y : 68,
@@ -684,7 +685,7 @@ function initSettings() {
 		cursor : true,
 		image : (DGE.Data.get('playMusic') ? assets.check : assets.checkGrey),
 		parent : sprites.settings.dialogSettings,
-		width : 36,
+		width : 32,
 		height : 36,
 		x : 12,
 		y : 108,
@@ -708,7 +709,7 @@ function initSettings() {
 		cursor : true,
 		image : (DGE.Data.get('playSFX') ? assets.check : assets.checkGrey),
 		parent : sprites.settings.dialogSettings,
-		width : 36,
+		width : 32,
 		height : 36,
 		x : 12,
 		y : 148,
@@ -719,9 +720,9 @@ function initSettings() {
 		cursor : true,
 		image : assets.done,
 		parent : sprites.settings.dialogSettings,
-		width : 175,
-		height : 48,
-		x : 26,
+		width : 115,
+		height : 47,
+		x : 52,
 		y : 229,
 		z : Z_MODAL
 	}).on('click', toggleSettings);
@@ -733,10 +734,9 @@ function initSettings() {
 		parent : sprites.settings.dialogCredits,
 		size : 12,
 		text : DGE.formatBBCode(
-			'Game Design & Programming<br>Matt Hackett' +
-			'<br><br>Music & Sound Effects<br>Josh Morse' +
-			'<br><br>Visual Design<br>Ricky Romero' +
-			'<br><br>Game Testing<br>Andrea Abney'
+			'Music & Sound Effects<br>[b]Josh Morse[/b]<br><a href="http://jmflava.com/" target="_new">jmflava.com</a>' +
+			'<br><br>Game Testing<br>[b]Andrea Abney[/b]<br><a href="http://andreaabney.com/" target="_new">andreaabney.com</a>' +
+			'<br><br>Everything Else<br>[b]Matt Hackett[/b]<br><a href="http://richtaur.com/" target="_new">richtaur.com</a>'
 		),
 		width : 212,
 		height : 200,
@@ -1270,7 +1270,7 @@ function getGameOverMessage() {
  */
 function getNewPiece() {
 
-	if (DGE.rand(1, 100) <= (player.level * 10)) {
+	if (DGE.rand(1, 100) <= (player.level * 20)) {
 		return DGE.rand(1, (pieceTypes.length - 1));
 	}
 
@@ -1413,7 +1413,7 @@ function newGame() {
 		money : 0,
 		moneyDisplay : 0,
 		movesUsed : 0,
-		numBombs : 0,
+		numBombs : DEFAULT_NUM_BOMBS,
 		numBombsDisplay : 0,
 		numMoves : DEFAULT_NUM_MOVES,
 		numMovesDisplay : DEFAULT_NUM_MOVES,
@@ -1691,7 +1691,7 @@ function showHowToPlay() {
 					(y - PIECE_SIZE + (PAD_HOW_TO_PLAY * 1.5))
 				);
 
-				icons[i].set('image', pieceTypes[type].replace(/\.png/, '_dark.png?damnit'));
+				icons[i].set('image', pieceTypes[type]);
 				icons[i].show();
 
 			} else {
@@ -1876,11 +1876,11 @@ function toggleSettings() {
 		}, DELAY_MODAL);
 
 		sprites.settings.dialogSettings.animate({
-			x : 10
+			x : 16
 		}, DELAY_MODAL);
 
 		sprites.settings.dialogCredits.animate({
-			x : 246
+			x : 240
 		}, DELAY_MODAL, {
 			complete : function() {
 				busy = false;
@@ -1981,4 +1981,4 @@ sprites.movesText.on('click', function() {
 */
 // /DEBUG
 
-})(); // Let's take this rap on back to '84 ...
+})(); // Let's take this rap on back to '84 ... http://olremix.org/remixes/TODO
