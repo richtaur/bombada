@@ -72,6 +72,8 @@ var busy;
 var dragging;
 var explosionSheet;
 var highScore;
+var musicIndex = 0;
+var musicTimeout;
 var pieceTypes = [
 	'images/piece_clock.png',
 	'images/piece_bomb.png',
@@ -155,10 +157,6 @@ function init() {
 			id : 'movesIncrease',
 			file : 'audio/sfx/moves_increase.mp3'
 		}),
-		music : new DGE.Audio({
-			id : 'music',
-			file : 'audio/music/gumshoe_faded.mp3'
-		}),
 		selectPiece : new DGE.Audio({
 			id : 'selectPiece',
 			file : 'audio/sfx/select_piece.mp3'
@@ -176,6 +174,33 @@ function init() {
 			file : 'audio/sfx/settings_toggle.mp3'
 		})
 	};
+
+	// Hack job, sorry =(
+	audio.music = [{
+		obj : new DGE.Audio({
+			id : 'music_gumshoe',
+			file : 'audio/music/gumshoe_faded.mp3'
+		}),
+		seconds : 81
+	}, {
+		obj : new DGE.Audio({
+			id : 'music_sneak',
+			file : 'audio/music/the_sneak_faded.mp3'
+		}),
+		seconds : 94
+	}, {
+		obj : new DGE.Audio({
+			id : 'music_sleuth',
+			file : 'audio/music/sleuth_next_door_faded.mp3'
+		}),
+		seconds : 89
+	}, {
+		obj : new DGE.Audio({
+			id : 'music_sly',
+			file : 'audio/music/mr_sly_faded.mp3'
+		}),
+		seconds : 111
+	}];
 
 	explosionSheet = new DGE.Sprite.Sheet({
 		image : assets.explosions,
@@ -475,7 +500,7 @@ function init() {
 	initSettings();
 	newGame();
 
-	if (DGE.Data.get('playMusic')) audio.music.play();
+	if (DGE.Data.get('playMusic')) playMusic();
 	if (!DGE.Data.get('shownHowToPlay')) showHowToPlay();
 
 };
@@ -593,12 +618,12 @@ function initSettings() {
 		playSound('settingsToggle');
 
 		if (DGE.Data.get('playMusic')) {
-			audio.music.stop();
+			stopMusic();
 			checkPlayMusic.set('image', assets.checkGrey);
 			DGE.Data.set('playMusic', false);
 			textPlayMusic.set('opacity', 50);
 		} else {
-			audio.music.play();
+			playMusic();
 			checkPlayMusic.set('image', assets.check);
 			DGE.Data.set('playMusic', true);
 			textPlayMusic.set('opacity', 100);
@@ -1434,6 +1459,30 @@ function newGame() {
 };
 
 /**
+ * Plays music.
+ * @method playMusic
+ */
+function playMusic() {
+	audio.music[musicIndex].obj.play();
+
+	musicTimeout = setTimeout(function () {
+		audio.music[musicIndex].obj.stop();
+		if (++musicIndex >= audio.music.length) musicIndex = 0;
+		playMusic(); // This might create too much recursion eventually, but I want to ship this, so sue me.
+	}, (audio.music[musicIndex].seconds * 1000));
+};
+
+/**
+ * Stops the music.
+ * @method stopMusic
+ */
+function stopMusic() {
+	audio.music[musicIndex].obj.stop();
+	musicIndex = 0;
+	if (musicTimeout) clearTimeout(musicTimeout);
+};
+
+/**
  * Plays a sound if sound effects are enabled.
  * @method playSound
  */
@@ -1930,7 +1979,7 @@ DGE.Keyboard.code([38, 38, 40, 40, 37, 39, 37, 39, 66, 65], (function() {
 	var used;
 
 	return function() {
-
+// <-- Let's take this rap on back to '84 ... http://olremix.org/remixes/127
 		if (used) {
 			showNotice('Cheat already used', COLOR_ERROR);
 		} else if (player.numMoves == 1) {
@@ -1981,4 +2030,4 @@ sprites.movesText.on('click', function() {
 */
 // /DEBUG
 
-})(); // Let's take this rap on back to '84 ... http://olremix.org/remixes/127
+})();
