@@ -109,71 +109,71 @@ function init() {
 	audio = {
 		boardReset : new DGE.Audio({
 			id : 'boardReset',
-			file : 'audio/board_reset.mp3'
+			file : 'audio/sfx/board_reset.mp3'
 		}),
 		bombsIncrease : new DGE.Audio({
 			id : 'bombsIncrease',
-			file : 'audio/bombs_increase.mp3'
+			file : 'audio/sfx/bombs_increase.mp3'
 		}),
 		cascade : new DGE.Audio({
 			id : 'cascade',
-			file : 'audio/cascade.mp3'
+			file : 'audio/sfx/cascade.mp3'
 		}),
 		error : new DGE.Audio({
 			id : 'error',
-			file : 'audio/error.mp3'
+			file : 'audio/sfx/error.mp3'
 		}),
 		explosion : new DGE.Audio({
 			id : 'explosion',
-			file : 'audio/explosion.mp3'
+			file : 'audio/sfx/explosion.mp3'
 		}),
 		extraMove : new DGE.Audio({
 			id : 'extraMove',
-			file : 'audio/extra_move.mp3'
+			file : 'audio/sfx/extra_move.mp3'
 		}),
 		invalidMove : new DGE.Audio({
 			id : 'invalidMove',
-			file : 'audio/invalid_move.mp3'
+			file : 'audio/sfx/invalid_move.mp3'
 		}),
 		levelUp : new DGE.Audio({
 			id : 'levelUp',
-			file : 'audio/level_up.mp3'
+			file : 'audio/sfx/level_up.mp3'
 		}),
 		modeSwitch : new DGE.Audio({
 			id : 'modeSwitch',
-			file : 'audio/mode_switch.mp3'
+			file : 'audio/sfx/mode_switch.mp3'
 		}),
 		moneyIncrease : new DGE.Audio({
 			id : 'moneyIncrease',
-			file : 'audio/money_increase.mp3'
+			file : 'audio/sfx/money_increase.mp3'
 		}),
 		movePiece : new DGE.Audio({
 			id : 'movePiece',
-			file : 'audio/move_piece.mp3'
+			file : 'audio/sfx/move_piece.mp3'
 		}),
 		movesIncrease : new DGE.Audio({
 			id : 'movesIncrease',
-			file : 'audio/moves_increase.mp3'
+			file : 'audio/sfx/moves_increase.mp3'
 		}),
 		music : new DGE.Audio({
 			id : 'music',
-			file : 'audio/music.mp3'
+			file : 'audio/music/gumshoe_faded.mp3'
 		}),
 		selectPiece : new DGE.Audio({
 			id : 'selectPiece',
-			file : 'audio/select_piece.mp3'
+			file : 'audio/sfx/select_piece.mp3'
 		}),
 		settingsOpen : new DGE.Audio({
 			id : 'selectPiece',
-			file : 'audio/settings_open.mp3'
+			file : 'audio/sfx/settings_open.mp3'
 		}),
 		settingsClose : new DGE.Audio({
 			id : 'selectPiece',
-			file : 'audio/settings_close.mp3'
+			file : 'audio/sfx/settings_close.mp3'
 		}),
 		settingsToggle : new DGE.Audio({
 			id : 'selectPiece',
-			file : 'audio/settings_toggle.mp3'
+			file : 'audio/sfx/settings_toggle.mp3'
 		})
 	};
 
@@ -463,7 +463,7 @@ function init() {
 		version : new DGE.Text({
 			color : COLOR_DEFAULT,
 			size : 8,
-			text : 'v0.91',
+			text : 'v0.92',
 			width : 30,
 			x : 140,
 			y : 45
@@ -1270,7 +1270,7 @@ function getGameOverMessage() {
  */
 function getNewPiece() {
 
-	if (DGE.rand(1, 100) <= (player.level * 20)) {
+	if (DGE.rand(1, 100) <= ((player.level - 1) * 15)) {
 		return DGE.rand(1, (pieceTypes.length - 1));
 	}
 
@@ -1981,4 +1981,4 @@ sprites.movesText.on('click', function() {
 */
 // /DEBUG
 
-})(); // Let's take this rap on back to '84 ... http://olremix.org/remixes/TODO
+})(); // Let's take this rap on back to '84 ... http://olremix.org/remixes/127
