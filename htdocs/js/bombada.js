@@ -1,5 +1,11 @@
 // todo: show a hint after X seconds of no activity
 // todo: OPTIMIZE! make everything a single SpriteSheet (do this VERY LAST)
+// todo: "mute" button (all sound, every damn web game on the PLANET should have this on every screen)
+// todo: "next" button (to go through the songs) ... maybe a repeat button too but that might be overkill
+/*
+	todo: seriously, the game is way too easy and uninteresting. should have a feature such as:
+		- burning crates and barrels will fall and must be blown up before they hit the ground (they are caused by dropping bombs)
+*/
 
 (function() {
 
@@ -58,12 +64,6 @@ var assets = {
 	levelMeter : 'images/level_meter.png',
 	iconBomb : 'images/icon_bomb.png',
 	iconBombGlow : 'images/icon_bomb_glow.png',
-	//pieceClockDark : 'images/piece_clock_dark.png',
-	//pieceBombDark : 'images/piece_bomb_dark.png',
-	//pieceDiamondDark : 'images/piece_diamond_dark.png',
-	//pieceMoneyDark : 'images/piece_money_dark.png',
-	//pieceCrateDark : 'images/piece_crate_dark.png',
-	//pieceBarrelDark : 'images/piece_barrel_dark.png',
 	playAgain : 'images/play_again.png',
 	settings : 'images/icon_settings.png'
 };
@@ -178,10 +178,10 @@ function init() {
 	// Hack job, sorry =(
 	audio.music = [{
 		obj : new DGE.Audio({
-			id : 'music_gumshoe',
-			file : 'audio/music/gumshoe_faded.mp3'
+			id : 'music_sleuth',
+			file : 'audio/music/sleuth_next_door_faded.mp3'
 		}),
-		seconds : 81
+		seconds : 89
 	}, {
 		obj : new DGE.Audio({
 			id : 'music_sneak',
@@ -190,10 +190,10 @@ function init() {
 		seconds : 94
 	}, {
 		obj : new DGE.Audio({
-			id : 'music_sleuth',
-			file : 'audio/music/sleuth_next_door_faded.mp3'
+			id : 'music_gumshoe',
+			file : 'audio/music/gumshoe_faded.mp3'
 		}),
-		seconds : 89
+		seconds : 81
 	}, {
 		obj : new DGE.Audio({
 			id : 'music_sly',
@@ -501,7 +501,7 @@ function init() {
 	newGame();
 
 	if (DGE.Data.get('playMusic')) playMusic();
-	if (!DGE.Data.get('shownHowToPlay')) showHowToPlay();
+	if (DGE.Data.get('showHowToPlay')) showHowToPlay();
 
 };
 
@@ -601,14 +601,14 @@ function initSettings() {
 
 		playSound('settingsToggle');
 
-		if (DGE.Data.get('shownHowToPlay')) {
-			checkHowToPlay.set('image', assets.check);
-			textHowToPlay.set('opacity', 100);
-			DGE.Data.set('shownHowToPlay', false);
+		if (DGE.Data.get('showHowToPlay')) {
+			sprites.checkHowToPlay.set('image', assets.checkGrey);
+			sprites.textHowToPlay.set('opacity', 50);
+			DGE.Data.set('showHowToPlay', false);
 		} else {
-			checkHowToPlay.set('image', assets.checkGrey);
-			textHowToPlay.set('opacity', 50);
-			DGE.Data.set('shownHowToPlay', true);
+			sprites.checkHowToPlay.set('image', assets.check);
+			sprites.textHowToPlay.set('opacity', 100);
+			DGE.Data.set('showHowToPlay', true);
 		}
 
 	};
@@ -670,9 +670,9 @@ function initSettings() {
 	};
 
 	// How to Play.
-	var textHowToPlay = new DGE.Text({
+	sprites.textHowToPlay = new DGE.Text({
 		cursor : true,
-		opacity : (DGE.Data.get('shownHowToPlay') ? 50 : 100),
+		opacity : (DGE.Data.get('showHowToPlay') ? 100 : 50),
 		parent : sprites.settings.dialogSettings,
 		size : 12,
 		text : DGE.formatBBCode('Show [b]How to Play[/b] dialog.'),
@@ -682,9 +682,9 @@ function initSettings() {
 		z : Z_MODAL
 	}).on('click', clickHowToPlay);
 
-	var checkHowToPlay = new DGE.Sprite({
+	sprites.checkHowToPlay = new DGE.Sprite({
 		cursor : true,
-		image : (DGE.Data.get('shownHowToPlay') ? assets.checkGrey : assets.check),
+		image : (DGE.Data.get('showHowToPlay') ? assets.check : assets.checkGrey),
 		parent : sprites.settings.dialogSettings,
 		width : 32,
 		height : 36,
@@ -808,6 +808,9 @@ function clickPiece(pieceX, pieceY) {
 	var pieceClicked = getPieceByPieceXY(pieceX, pieceY);
 
 	sprites.cursor.centerOn(pieceClicked).start().show();
+	sprites.cursor
+		.offset('x', 3)
+		.offset('y', 3);
 
 	var selectedPieceX = player.selected.pieceX;
 	var selectedPieceY = player.selected.pieceY;
@@ -1688,7 +1691,7 @@ function showHowToPlay() {
 
 		if (tipIndex == tips.length) {
 
-			DGE.Data.set('shownHowToPlay', true);
+			DGE.Data.set('showHowToPlay', false);
 
 			sprites.howToPlay.fade(0, 500, function() {
 				busy = false;
@@ -1896,6 +1899,7 @@ function toggleSettings() {
 
 	if (screen == 'settings') {
 
+		// Hide the settings modal
 		playSound('settingsClose');
 
 		sprites.overlay.animate({
@@ -1913,12 +1917,23 @@ function toggleSettings() {
 				busy = false;
 				screen = null;
 				sprites.overlay.hide();
+				if (DGE.Data.get('showHowToPlay')) showHowToPlay();
 			}
 		});
 
 	} else {
 
+		// Show the settings modal
 		playSound('settingsOpen');
+
+		// Update "Show how to play" because it will have changed
+		if (DGE.Data.get('showHowToPlay')) {
+			sprites.checkHowToPlay.set('image', assets.check);
+			sprites.textHowToPlay.set('opacity', 100);
+		} else {
+			sprites.checkHowToPlay.set('image', assets.checkGrey);
+			sprites.textHowToPlay.set('opacity', 50);
+		}
 
 		sprites.overlay.set('opacity', 0).show().animate({
 			opacity : 90
@@ -1979,10 +1994,10 @@ DGE.Keyboard.code([38, 38, 40, 40, 37, 39, 37, 39, 66, 65], (function() {
 	var used;
 
 	return function() {
-// <-- Let's take this rap on back to '84 ... http://olremix.org/remixes/127
 		if (used) {
 			showNotice('Cheat already used', COLOR_ERROR);
 		} else if (player.numMoves == 1) {
+// <-- Let's take this rap on back to '84 ... http://olremix.org/remixes/127
 			player.numMoves++;
 			used = true;
 			showNotice('+1 move', COLOR_DEFAULT);
