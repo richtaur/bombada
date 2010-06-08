@@ -566,7 +566,10 @@ function initGameOver() {
 	}).on('click', function() {
 
 		newGame();
-		sprites.overlay.fade(0, DELAY_FADE);
+		sprites.overlay.fade(0, DELAY_FADE, function () {
+			this.hide();
+		});
+
 		sprites.gameOver.dialog.animate({
 			y : DGE.stage.height
 		}, DELAY_MODAL);
@@ -773,6 +776,21 @@ function initSettings() {
 };
 
 /**
+ * Checks if a piece is blow-up-able.
+ * @method canBlowUp
+ */
+function canBlowUp(piece) {
+	var type = piece.get('type');
+	switch (type) {
+		// Intentional falthroughs
+		case TYPE_BARREL:
+		case TYPE_CRATE:
+			return true;
+	}
+	return false;
+};
+
+/**
  * Checks if the game is over (also puts you in bomb mode if you must be).
  * @return {Boolean} true if the game is over, false if GAME ON!
  * @method checkGameOver
@@ -928,9 +946,15 @@ function dropBomb(pieceX, pieceY) {
 
 	if (busy) return;
 
+	var piece = getPieceByPieceXY(pieceX, pieceY);
+
+	if (!canBlowUp(piece)) {
+		showNotice("Can't blow that up", COLOR_ERROR);
+		return;
+	}
+
 	busy = true;
 
-	var piece = getPieceByPieceXY(pieceX, pieceY);
 	var pieces = match3.getPieces();
 	pieces[pieceY][pieceX] = true;
 
@@ -1645,7 +1669,7 @@ function showHowToPlay() {
 			y : 112
 		}, {
 			icons : [TYPE_CRATE, TYPE_BARREL],
-			message : "You'll want to blow up [b]Crates[/b] and [b]Barrels[/b] since you get no benefits from matching them.",
+			message : "Bombs work on [b]Crates[/b] and [b]Barrels[/b]. Blow them up to clear a path to the cash!",
 			x : 214,
 			y : 90
 		}, {
