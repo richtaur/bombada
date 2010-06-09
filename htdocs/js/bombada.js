@@ -4,7 +4,7 @@
 // todo: "next" button (to go through the songs) ... maybe a repeat button too but that might be overkill
 /*
 	todo: seriously, the game is way too easy and uninteresting. should have a feature such as:
-		- burning crates and barrels will fall and must be blown up before they hit the ground (they are caused by dropping bombs)
+		- burning crates and barrels will fall and must be blown up before they hit the ground (they are caused by dropping bombs?)
 */
 
 (function() {
@@ -805,6 +805,9 @@ function checkGameOver() {
 			toggleMode();
 		}
 
+		// Last check: the game IS over if there aren't any crates/barrels to blow up!
+		if (!hasBombables()) return true;
+
 		return false;
 
 	}
@@ -1372,6 +1375,28 @@ function getWorth(type) {
 		case TYPE_COIN:
 			return 25;
 	}
+
+};
+
+/**
+ * Dumb method name for a check to see if anything on the board can be blown up.
+ * @return {Boolean} true if something can be blown up, otherwise false.
+ * @method hasBombables
+ */
+function hasBombables() {
+
+	var children = DGE.Sprite.getByProperty('group', GROUP_PIECE);
+
+	for (var x = 0; x < PIECES_X; x++) {
+		for (var y = 0; y < PIECES_Y; y++) {
+			for (var i = 0; i < children.length; i++) {
+				var sprite = children[i];
+				if (canBlowUp(sprite)) return true;
+			}
+		}
+	}
+
+	return false;
 
 };
 
@@ -1956,6 +1981,7 @@ function toggleSettings() {
 			sprites.textHowToPlay.set('opacity', 100);
 		} else {
 			sprites.checkHowToPlay.set('image', assets.checkGrey);
+// <-- Let's take this rap on back to '84 ... http://olremix.org/remixes/127
 			sprites.textHowToPlay.set('opacity', 50);
 		}
 
@@ -2021,7 +2047,6 @@ DGE.Keyboard.code([38, 38, 40, 40, 37, 39, 37, 39, 66, 65], (function() {
 		if (used) {
 			showNotice('Cheat already used', COLOR_ERROR);
 		} else if (player.numMoves == 1) {
-// <-- Let's take this rap on back to '84 ... http://olremix.org/remixes/127
 			player.numMoves++;
 			used = true;
 			showNotice('+1 move', COLOR_DEFAULT);

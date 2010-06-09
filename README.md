@@ -17,3 +17,7 @@ Development on this game is done; it's as far along as it'll ever be.
 
 Matt Hackett
 richtaur.com
+
+## More info
+
+http://blog.lostdecadegames.com/TBD
