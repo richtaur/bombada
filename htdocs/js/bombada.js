@@ -1,3 +1,29 @@
+/*
+Bombada by Matt Hackett is licensed under a Creative Commons Attribution-Noncommercial-Share Alike 3.0 United States License.
+Permissions beyond the scope of this license may be available.
+The author can be contacted here: http://richtaur.com/
+
+License details: http://creativecommons.org/licenses/by-nc-sa/3.0/us/
+
+You are free:
+
+to Share — to copy, distribute and transmit the work
+to Remix — to adapt the work
+Under the following conditions:
+
+Attribution — You must attribute the work in the manner specified by the author or licensor (but not in any way that suggests that they endorse you or your use of the work).
+Noncommercial — You may not use this work for commercial purposes.
+Share Alike — If you alter, transform, or build upon this work, you may distribute the resulting work only under the same or similar license to this one.
+With the understanding that:
+
+Waiver — Any of the above conditions can be waived if you get permission from the copyright holder.
+Other Rights — In no way are any of the following rights affected by the license:
+Your fair dealing or fair use rights;
+Apart from the remix rights granted under this license, the author's moral rights;
+Rights other persons may have either in the work itself or in how the work is used, such as publicity or privacy rights.
+Notice — For any reuse or distribution, you must make clear to others the license terms of this work. The best way to do this is with a link to this web page.
+*/
+
 // todo: show a hint after X seconds of no activity
 // todo: OPTIMIZE! make everything a single SpriteSheet (do this VERY LAST)
 // todo: "mute" button (all sound, every damn web game on the PLANET should have this on every screen)
@@ -68,6 +94,7 @@ var assets = {
 	settings : 'images/icon_settings.png'
 };
 var audio;
+var audioBusy;
 var busy;
 var dragging;
 var explosionSheet;
@@ -762,7 +789,7 @@ function initSettings() {
 		parent : sprites.settings.dialogCredits,
 		size : 12,
 		text : DGE.formatBBCode(
-			'Music & Sound Effects<br>[b]Josh Morse[/b]<br><a href="http://jmflava.com/" target="_new">jmflava.com</a>' +
+			'Music & Sound Effects<br>[b]Joshua Morse[/b]<br><a href="http://jmflava.com/" target="_new">jmflava.com</a>' +
 			'<br><br>Game Testing<br>[b]Andrea Abney[/b]<br><a href="http://andreaabney.com/" target="_new">andreaabney.com</a>' +
 			'<br><br>Everything Else<br>[b]Matt Hackett[/b]<br><a href="http://richtaur.com/" target="_new">richtaur.com</a>'
 		),
@@ -782,7 +809,7 @@ function initSettings() {
 function canBlowUp(piece) {
 	var type = piece.get('type');
 	switch (type) {
-		// Intentional falthroughs
+		// Intentional fallthroughs:
 		case TYPE_BARREL:
 		case TYPE_CRATE:
 			return true;
@@ -806,7 +833,10 @@ function checkGameOver() {
 		}
 
 		// Last check: the game IS over if there aren't any crates/barrels to blow up!
-		if (!hasBombables()) return true;
+		if (!hasBombables()) {
+			showNotice('Nothing to bomb!', COLOR_ERROR);
+			return true;
+		}
 
 		return false;
 
@@ -1539,7 +1569,20 @@ function stopMusic() {
  * @method playSound
  */
 function playSound(sound) {
-	if (DGE.Data.get('playSFX')) audio[sound].play();
+
+	if (!DGE.Data.get('playSFX')) return;
+
+	// Such a hack job, I'm sorry :(
+	if (sound == 'moneyIncrease') {
+		if (audioBusy) return;
+		audioBusy = true;
+		setTimeout(function () {
+			audioBusy = false;
+		}, 3000);
+	}
+
+	audio[sound].play();
+
 };
 
 /**
@@ -1938,6 +1981,7 @@ function toggleMode() {
 
 /**
  * Toggles the settings dialog.
+<-- Let's take this rap on back to '84 ... http://olremix.org/remixes/127
  * @method toggleSettings
  */
 function toggleSettings() {
@@ -1981,7 +2025,6 @@ function toggleSettings() {
 			sprites.textHowToPlay.set('opacity', 100);
 		} else {
 			sprites.checkHowToPlay.set('image', assets.checkGrey);
-// <-- Let's take this rap on back to '84 ... http://olremix.org/remixes/127
 			sprites.textHowToPlay.set('opacity', 50);
 		}
 
