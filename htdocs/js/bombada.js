@@ -1,4 +1,5 @@
-/*
+/* ===== LICENSE =====
+
 Bombada by Matt Hackett is licensed under a Creative Commons Attribution-Noncommercial-Share Alike 3.0 United States License.
 Permissions beyond the scope of this license may be available.
 The author can be contacted here: http://richtaur.com/
@@ -22,7 +23,8 @@ Your fair dealing or fair use rights;
 Apart from the remix rights granted under this license, the author's moral rights;
 Rights other persons may have either in the work itself or in how the work is used, such as publicity or privacy rights.
 Notice — For any reuse or distribution, you must make clear to others the license terms of this work. The best way to do this is with a link to this web page.
-*/
+
+===== LICENSE ===== */
 
 // todo: show a hint after X seconds of no activity
 // todo: OPTIMIZE! make everything a single SpriteSheet (do this VERY LAST)
@@ -50,7 +52,7 @@ var DELAY_MOVE = 250;
 var DELAY_NOTICE = 750;
 var FRAMES_FALLING = 30;
 var FRAMES_MOVING = 15;
-var GAME_OVER_INCREMENT = 50;
+var GAME_OVER_INCREMENT = 200;
 var GROUP_PIECE = 'piece';
 var MODE_BOMB = 0;
 var MODE_MOVE = 1;
@@ -99,7 +101,7 @@ var busy;
 var dragging;
 var explosionSheet;
 var highScore;
-var musicIndex = 0;
+var musicIndex = null;
 var musicTimeout;
 var pieceTypes = [
 	'images/piece_clock.png',
@@ -120,6 +122,22 @@ var sprites;
  * @method init
  */
 function init() {
+
+	// Music is on by default.
+	if (
+		(DGE.Data.get('playMusic') === null)
+		|| (DGE.Data.get('playMusic') === undefined)
+	) {
+		DGE.Data.set('playMusic', true);
+	}
+
+	// SFX are on by default.
+	if (
+		(DGE.Data.get('playSFX') === null)
+		|| (DGE.Data.get('playSFX') === undefined)
+	) {
+		DGE.Data.set('playSFX', true);
+	}
 
 	DGE.stage.set('image', assets.background);
 
@@ -1545,11 +1563,19 @@ function newGame() {
  * @method playMusic
  */
 function playMusic() {
+
+	if (musicIndex === null) {
+		musicIndex = DGE.rand(audio.music);
+	}
+
 	audio.music[musicIndex].obj.play();
 
 	musicTimeout = setTimeout(function () {
 		audio.music[musicIndex].obj.stop();
-		if (++musicIndex >= audio.music.length) musicIndex = 0;
+		do {
+			var newMusicIndex = DGE.rand(audio.music);
+		} while (newMusicIndex == musicIndex);
+		musicIndex = newMusicIndex;
 		playMusic(); // This might create too much recursion eventually, but I want to ship this, so sue me.
 	}, (audio.music[musicIndex].seconds * 1000));
 };
@@ -1560,7 +1586,7 @@ function playMusic() {
  */
 function stopMusic() {
 	audio.music[musicIndex].obj.stop();
-	musicIndex = 0;
+	musicIndex = null;
 	if (musicTimeout) clearTimeout(musicTimeout);
 };
 
@@ -1957,6 +1983,7 @@ function toggleMode() {
 
 		if (!player.numMoves) {
 			playSound('error');
+// <-- Let's take this rap on back to '84 ... http://olremix.org/remixes/127
 			showNotice('No moves left', COLOR_ERROR);
 		} else {
 			playSound('modeSwitch');
@@ -1981,7 +2008,6 @@ function toggleMode() {
 
 /**
  * Toggles the settings dialog.
-<-- Let's take this rap on back to '84 ... http://olremix.org/remixes/127
  * @method toggleSettings
  */
 function toggleSettings() {
