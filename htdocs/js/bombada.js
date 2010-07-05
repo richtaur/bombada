@@ -2090,7 +2090,7 @@ DGE.Audio.init({
 		loading.set('text', "Sorry, couldn't load audio.");
 		setTimeout(initLoader, 1500);
 	}
-});
+}, 2000);
 
 // Easter Egg (Konami Code).
 DGE.Keyboard.code([38, 38, 40, 40, 37, 39, 37, 39, 66, 65], (function() {
