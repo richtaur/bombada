@@ -123,14 +123,6 @@ var sprites;
  */
 function init() {
 
-	// Music is on by default.
-	if (
-		(DGE.Data.get('playMusic') === null)
-		|| (DGE.Data.get('playMusic') === undefined)
-	) {
-		DGE.Data.set('playMusic', true);
-	}
-
 	// SFX are on by default.
 	if (
 		(DGE.Data.get('playSFX') === null)
@@ -1983,13 +1975,13 @@ function toggleMode() {
 
 		if (!player.numMoves) {
 			playSound('error');
-// <-- Let's take this rap on back to '84 ... http://olremix.org/remixes/127
 			showNotice('No moves left', COLOR_ERROR);
 		} else {
 			playSound('modeSwitch');
 			player.mode = MODE_MOVE;
 			showMode();
 		}
+// <-- Let's take this rap on back to '84 ... http://olremix.org/remixes/127
 
 	} else {
 
