@@ -2087,7 +2087,7 @@ var loading = new DGE.Text({
 DGE.Audio.init({
 	complete : initLoader,
 	error : function() {
-		loading.text("Sorry, couldn't load audio.");
+		loading.set('text', "Sorry, couldn't load audio.");
 		setTimeout(initLoader, 1500);
 	}
 });

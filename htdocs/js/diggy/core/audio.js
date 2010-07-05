@@ -162,7 +162,7 @@ DGE.Audio.swfSrc = 'swf/external_interface.swf';
 DGE.Audio.init = function(callbacks, timeoutDelay) {
 
 	callbacks = (callbacks || {});
-	timeoutDelay = (timeoutDelay || 3000);
+	timeoutDelay = (timeoutDelay || 2000);
 
 	if (DGE.platform.name == DGE.platform.TITANIUM) {
 		DGE.Audio.enabled = true;
