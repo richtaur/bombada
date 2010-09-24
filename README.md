@@ -4,6 +4,10 @@ Bombada is a simple match-3 game written in JavaScript using the Diggy game engi
 Diggy can be found here: http://github.com/lostdecade/diggy
 Development on this game is done; it's as far along as it'll ever be.
 
+## More info
+
+http://blog.lostdecadegames.com/diggy-open-source-javascript-game-engine-with
+
 ## Known issues
 
 - Doesn't work in IE. My plan from the get-go was to support it, but ... no. Just no.
@@ -13,11 +17,16 @@ Development on this game is done; it's as far along as it'll ever be.
 - Pretty sure the `localStorage` stuff doesn't work. Don't even remember at this point :P
 - __Note: desired features can be found in htdocs/js/bombada.js comments__
 
+## Platform differences
+
+Platform      | Dimensions | Audio Script   | Sounds Available | Directory Structure
+
+iPad              1024x768   audio_html5.js   Music              Flat
+iPhone             420x380   audio_html5.js   Music              Flat
+Mobile Safari      420x380   audio_html5.js   Music              Folders
+Web                420x380   audio.js         Music/SFX          Folders
+
 ## Author
 
 Matt Hackett
 richtaur.com
-
-## More info
-
-http://blog.lostdecadegames.com/diggy-open-source-javascript-game-engine-with

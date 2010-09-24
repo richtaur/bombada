@@ -35,7 +35,7 @@ Notice — For any reuse or distribution, you must make clear to others the lice
 		- burning crates and barrels will fall and must be blown up before they hit the ground (they are caused by dropping bombs?)
 */
 
-(function() {
+var Bombada = function(CONF) {
 
 var match3 = exports.match3;
 
@@ -77,23 +77,33 @@ var Z_UI = 4; // Always above the pieces.
 var Z_MOVING = 3; // Moving, so above the other pieces to prevent visual clutter.
 var Z_PIECE = 2; // Just above the background.
 
+var dirs = {
+	audioSFX: "audio/sfx/",
+	audioMusic: "audio/music/",
+	images: DGE.sprintf("images/%sx%s/", CONF.width, CONF.height)
+};
+
+if (!CONF.folders) {
+	for (var key in dirs) dirs[key] = "";
+}
+
 var assets = {
-	background : 'images/bg.png',
-	backgroundBomb : 'images/bg_bomb.png',
-	check : 'images/check.png',
-	checkGrey : 'images/check_grey.png',
-	cursor : 'images/cursor.png',
-	dialogCredits : 'images/credits.png',
-	dialogGameOver : 'images/game_over.png',
-	dialogSettings : 'images/settings.png',
-	done : 'images/done.png',
-	explosions : 'images/explosions.png',
-	howToPlayArrow : 'images/tips_arrow.png',
-	levelMeter : 'images/level_meter.png',
-	iconBomb : 'images/icon_bomb.png',
-	iconBombGlow : 'images/icon_bomb_glow.png',
-	playAgain : 'images/play_again.png',
-	settings : 'images/icon_settings.png'
+	background : dirs.images + 'bg.png',
+	backgroundBomb : dirs.images + 'bg_bomb.png',
+	check : dirs.images + 'check.png',
+	checkGrey : dirs.images + 'check_grey.png',
+	cursor : dirs.images + 'cursor.png',
+	dialogCredits : dirs.images + 'credits.png',
+	dialogGameOver : dirs.images + 'game_over.png',
+	dialogSettings : dirs.images + 'settings.png',
+	done : dirs.images + 'done.png',
+	explosions : dirs.images + 'explosions.png',
+	howToPlayArrow : dirs.images + 'tips_arrow.png',
+	levelMeter : dirs.images + 'level_meter.png',
+	iconBomb : dirs.images + 'icon_bomb.png',
+	iconBombGlow : dirs.images + 'icon_bomb_glow.png',
+	playAgain : dirs.images + 'play_again.png',
+	settings : dirs.images + 'icon_settings.png'
 };
 var audio;
 var audioBusy;
@@ -104,13 +114,13 @@ var highScore;
 var musicIndex = null;
 var musicTimeout;
 var pieceTypes = [
-	'images/piece_clock.png',
-	'images/piece_bomb.png',
-	'images/piece_diamond.png',
-	'images/piece_dollar.png',
-	'images/piece_coin.png',
-	'images/piece_crate.png',
-	'images/piece_barrel.png'
+	dirs.images + 'piece_clock.png',
+	dirs.images + 'piece_bomb.png',
+	dirs.images + 'piece_diamond.png',
+	dirs.images + 'piece_dollar.png',
+	dirs.images + 'piece_coin.png',
+	dirs.images + 'piece_crate.png',
+	dirs.images + 'piece_barrel.png'
 ];
 var player = {};
 var queue = new DGE.Object();
@@ -148,67 +158,67 @@ function init() {
 	audio = {
 		boardReset : new DGE.Audio({
 			id : 'boardReset',
-			file : 'audio/sfx/board_reset.mp3'
+			file : dirs.audioSFX + 'board_reset.mp3'
 		}),
 		bombsIncrease : new DGE.Audio({
 			id : 'bombsIncrease',
-			file : 'audio/sfx/bombs_increase.mp3'
+			file : dirs.audioSFX + 'bombs_increase.mp3'
 		}),
 		cascade : new DGE.Audio({
 			id : 'cascade',
-			file : 'audio/sfx/cascade.mp3'
+			file : dirs.audioSFX + 'cascade.mp3'
 		}),
 		error : new DGE.Audio({
 			id : 'error',
-			file : 'audio/sfx/error.mp3'
+			file : dirs.audioSFX + 'error.mp3'
 		}),
 		explosion : new DGE.Audio({
 			id : 'explosion',
-			file : 'audio/sfx/explosion.mp3'
+			file : dirs.audioSFX + 'explosion.mp3'
 		}),
 		extraMove : new DGE.Audio({
 			id : 'extraMove',
-			file : 'audio/sfx/extra_move.mp3'
+			file : dirs.audioSFX + 'extra_move.mp3'
 		}),
 		invalidMove : new DGE.Audio({
 			id : 'invalidMove',
-			file : 'audio/sfx/invalid_move.mp3'
+			file : dirs.audioSFX + 'invalid_move.mp3'
 		}),
 		levelUp : new DGE.Audio({
 			id : 'levelUp',
-			file : 'audio/sfx/level_up.mp3'
+			file : dirs.audioSFX + 'level_up.mp3'
 		}),
 		modeSwitch : new DGE.Audio({
 			id : 'modeSwitch',
-			file : 'audio/sfx/mode_switch.mp3'
+			file : dirs.audioSFX + 'mode_switch.mp3'
 		}),
 		moneyIncrease : new DGE.Audio({
 			id : 'moneyIncrease',
-			file : 'audio/sfx/money_increase.mp3'
+			file : dirs.audioSFX + 'money_increase.mp3'
 		}),
 		movePiece : new DGE.Audio({
 			id : 'movePiece',
-			file : 'audio/sfx/move_piece.mp3'
+			file : dirs.audioSFX + 'move_piece.mp3'
 		}),
 		movesIncrease : new DGE.Audio({
 			id : 'movesIncrease',
-			file : 'audio/sfx/moves_increase.mp3'
+			file : dirs.audioSFX + 'moves_increase.mp3'
 		}),
 		selectPiece : new DGE.Audio({
 			id : 'selectPiece',
-			file : 'audio/sfx/select_piece.mp3'
+			file : dirs.audioSFX + 'select_piece.mp3'
 		}),
 		settingsOpen : new DGE.Audio({
 			id : 'selectPiece',
-			file : 'audio/sfx/settings_open.mp3'
+			file : dirs.audioSFX + 'settings_open.mp3'
 		}),
 		settingsClose : new DGE.Audio({
 			id : 'selectPiece',
-			file : 'audio/sfx/settings_close.mp3'
+			file : dirs.audioSFX + 'settings_close.mp3'
 		}),
 		settingsToggle : new DGE.Audio({
 			id : 'selectPiece',
-			file : 'audio/sfx/settings_toggle.mp3'
+			file : dirs.audioSFX + 'settings_toggle.mp3'
 		})
 	};
 
@@ -216,25 +226,25 @@ function init() {
 	audio.music = [{
 		obj : new DGE.Audio({
 			id : 'music_sleuth',
-			file : 'audio/music/sleuth_next_door_faded.mp3'
+			file : dirs.audioMusic + 'sleuth_next_door_faded.mp3'
 		}),
 		seconds : 89
 	}, {
 		obj : new DGE.Audio({
 			id : 'music_sneak',
-			file : 'audio/music/the_sneak_faded.mp3'
+			file : dirs.audioMusic + 'the_sneak_faded.mp3'
 		}),
 		seconds : 94
 	}, {
 		obj : new DGE.Audio({
 			id : 'music_gumshoe',
-			file : 'audio/music/gumshoe_faded.mp3'
+			file : dirs.audioMusic + 'gumshoe_faded.mp3'
 		}),
 		seconds : 81
 	}, {
 		obj : new DGE.Audio({
 			id : 'music_sly',
-			file : 'audio/music/mr_sly_faded.mp3'
+			file : dirs.audioMusic + 'mr_sly_faded.mp3'
 		}),
 		seconds : 111
 	}];
@@ -2070,8 +2080,8 @@ function toggleSettings() {
 DGE.init({
 	id : 'bombada',
 	background : '#000',
-	width : 480,
-	height : 320
+	width : CONF.width,
+	height : CONF.height
 }).on('mouseUp', function() {
 	dragging = false;
 });
@@ -2155,4 +2165,4 @@ sprites.movesText.on('click', function() {
 */
 // /DEBUG
 
-})();
+};

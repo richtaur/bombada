@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<link href="favicon.ico" rel="shortcut icon" type="/image/vnd.microsoft.icon">
+		<style>
+			body {
+				background: #FFF;
+				margin: 0;
+				padding: 0;
+			}
+			a {
+				color: #999;
+				text-decoration: none;
+			}
+			a:hover {
+				text-decoration: underline;
+			}
+		</style>
+		<title>Bombada</title>
+		<script>
+			// Yeah, it's a HACK, sorry :(
+			if (window.orientation !== undefined) {
+				location.href = "mobile_safari.html";
+			}
+		</script>
+	</head>
+	<body>
+
+		<div id="bombada"></div>
+
+		<!-- DGE core -->
+		<script src="js/diggy/core/dge.js"></script>
+		<script src="js/diggy/core/patches.js"></script>
+		<script src="js/diggy/core/object.js"></script>
+		<script src="js/diggy/core/audio.js"></script>
+		<script src="js/diggy/core/data.js"></script>
+		<script src="js/diggy/core/interval.js"></script>
+		<script src="js/diggy/core/keyboard.js"></script>
+		<script src="js/diggy/core/loader.js"></script>
+		<script src="js/diggy/core/mouse.js"></script>
+		<script src="js/diggy/core/sprite.js"></script>
+		<script src="js/diggy/core/text.js"></script>
+
+		<!-- DGE plugins -->
+		<script src="js/diggy/plugins/sprite.animate.js"></script>
+		<script src="js/diggy/plugins/sprite.sheet.js"></script>
+		<script src="js/diggy/plugins/bbcode.js"></script>
+
+		<!-- This game's scripts -->
+		<script src="js/match3.js"></script>
+		<script src="js/bombada.js"></script>
+		<script>Bombada({
+			width: 480,
+			height: 320,
+			folders: true,
+			soundFX: true
+		});</script>
+
+	</body>
+</html>
