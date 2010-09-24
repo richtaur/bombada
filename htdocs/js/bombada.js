@@ -779,6 +779,7 @@ function initSettings() {
 		y : 160,
 		z : Z_MODAL
 	}).on('click', clickPlaySFX);
+	if (!CONF.soundFX) textPlaySFX.hide();
 
 	var checkPlaySFX = new DGE.Sprite({
 		cursor : true,
@@ -790,6 +791,7 @@ function initSettings() {
 		y : 148,
 		z : Z_MODAL
 	}).on('click', clickPlaySFX);
+	if (!CONF.soundFX) checkPlaySFX.hide();
 
 	new DGE.Sprite({
 		cursor : true,
@@ -1598,6 +1600,7 @@ function stopMusic() {
  */
 function playSound(sound) {
 
+	if (!CONF.soundFX) return;
 	if (!DGE.Data.get('playSFX')) return;
 
 	// Such a hack job, I'm sorry :(
