@@ -12,14 +12,12 @@ Bombada is a simple match-3 game written in JavaScript using the [Diggy](http://
 
 ## Platform differences
 
-`
-Platform      | Dimensions | Audio Script   | Sounds Available | Directory Structure
+`Platform      | Dimensions | Audio Script   | Sounds Available | Directory Structure`
 
-iPad              1024x768   audio_html5.js   Music              Flat
-iPhone             420x380   audio_html5.js   Music              Flat
-Mobile Safari      420x380   audio_html5.js   Music              Folders
-Web                420x380   audio.js         Music/SFX          Folders
-`
+`iPad              1024x768   audio_html5.js   Music              Flat`
+`iPhone             420x380   audio_html5.js   Music              Flat`
+`Mobile Safari      420x380   audio_html5.js   Music              Folders`
+`Web                420x380   audio.js         Music/SFX          Folders`
 
 ## Author
 
